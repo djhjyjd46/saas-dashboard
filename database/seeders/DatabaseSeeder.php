@@ -15,11 +15,27 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $tenant = \App\Models\Tenant::create([
+            'name' => 'gold',
+            'domain' => 'analytics.stashevski.by',
+            'active_theme' => 'gold',
+            'settings' => [
+                'category_mapping' => [
+                    'Поиск' => ['12345'],
+                    'РСЯ' => ['67890'],
+                ]
+            ],
         ]);
+
+        \App\Models\User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@stashevski.by',
+            'password' => bcrypt('root'),
+            'tenant_id' => $tenant->id,
+            'role' => 'admin',
+            'theme' => 'default',
+        ]);
+
+        // No sample data — real data comes from syncing integrations
     }
 }

@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'yandex' => [
+        'client_id'     => env('YANDEX_CLIENT_ID'),
+        'client_secret' => env('YANDEX_CLIENT_SECRET'),
+    ],
+
+    'amocrm' => [
+        'client_id'     => env('AMOCRM_CLIENT_ID'),
+        'client_secret' => env('AMOCRM_CLIENT_SECRET'),
+        'base_domain'   => env('AMOCRM_BASE_DOMAIN'),
+    ],
+
 ];
