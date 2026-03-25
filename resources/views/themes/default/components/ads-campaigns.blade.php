@@ -21,7 +21,8 @@
                             @if ($st === 'serving')
                                 <span
                                     class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-green-500/10 text-green-400">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Показы идут
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Показы
+                                    идут
                                 </span>
                             @elseif($st === 'active')
                                 <span
@@ -114,6 +115,7 @@
                                 <div class="text-xl font-bold text-pink-400">
                                     {{ number_format($cs['ctr'], 2, ',', '.') }}%</div>
                             </div>
+
                             <div class="p-4 rounded-xl bg-[#1a1d24] border border-[#2a2e39]">
                                 <div class="text-xs text-gray-500 mb-1">Дней</div>
                                 <div class="text-xl font-bold text-gray-300">{{ count($campaignDailyStats) }}</div>
@@ -135,6 +137,7 @@
                                             <th class="p-3 text-right font-semibold">Клики</th>
                                             <th class="p-3 text-right font-semibold">Показы</th>
                                             <th class="p-3 text-right font-semibold">CTR</th>
+
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-[#2a2e39]">
@@ -151,6 +154,7 @@
                                                 <td class="p-3 text-right text-pink-400 text-xs">
                                                     {{ $day->impressions > 0 ? number_format(($day->clicks / $day->impressions) * 100, 2, ',', '.') : '0,00' }}%
                                                 </td>
+
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -167,7 +171,7 @@
     <div class="flex items-center justify-between mb-6 gap-4">
         <div>
             <h2 class="text-lg font-bold text-white">Рекламные кампании</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Яндекс.Директ · {{ count($campaigns) }} кампаний за период</p>
+            <p class="text-xs text-gray-500 mt-0.5">Яндекс.Директ · {{ $totalCampaignsCount }} кампаний за период</p>
         </div>
         <div class="relative">
             <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" fill="none"
@@ -210,6 +214,7 @@
                     'value' => number_format($totals['ctr'], 2, ',', '.') . '%',
                     'color' => 'text-pink-400',
                 ],
+
             ];
         @endphp
         @foreach ($miniStats as $ms)
@@ -262,6 +267,7 @@
                             <span class="ml-1">{{ $sortDir === 'desc' ? '↓' : '↑' }}</span>
                         @endif
                     </th>
+
                     <th class="p-4 font-semibold text-center cursor-pointer hover:text-white transition select-none"
                         wire:click="sort('status')">
                         Статус @if ($sortBy === 'status')
@@ -271,80 +277,126 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($campaigns as $i => $camp)
+                @foreach ($groups as $group)
                     @php
-                        $st = $camp->normalized_status;
-                        $isStale = is_null($camp->last_synced_at);
-                        if ($isStale) {
-                            $badge = ['bg-gray-700/50 text-gray-600', 'bg-gray-700', 'Устарело'];
-                        } elseif ($st === 'serving') {
-                            $badge = ['bg-green-500/10 text-green-400', 'bg-green-400 animate-pulse', 'Показы идут'];
-                        } elseif ($st === 'active') {
-                            $badge = ['bg-teal-500/10 text-teal-400', 'bg-teal-500', 'Включена'];
-                        } elseif ($st === 'suspended' || $st === 'paused') {
-                            $badge = ['bg-yellow-500/10 text-yellow-500', 'bg-yellow-500', 'Пауза'];
-                        } elseif ($st === 'archived') {
-                            $badge = ['bg-gray-500/10 text-gray-600', 'bg-gray-700', 'Архив'];
-                        } elseif ($st === 'ended') {
-                            $badge = ['bg-gray-500/10 text-gray-400', 'bg-gray-500', 'Завершена'];
-                        } elseif ($st === 'stopped') {
-                            $badge = ['bg-red-500/10 text-red-400', 'bg-red-500', 'Остановлена'];
-                        } elseif ($st === 'moderation') {
-                            $badge = ['bg-blue-500/10 text-blue-400', 'bg-blue-400', 'Модерация'];
-                        } elseif ($st === 'rejected') {
-                            $badge = ['bg-red-500/10 text-red-400', 'bg-red-600', 'Отклонена'];
-                        } elseif ($st === 'draft') {
-                            $badge = ['bg-blue-500/10 text-blue-400', 'bg-blue-500', 'Черновик'];
-                        } else {
-                            $badge = ['bg-gray-500/10 text-gray-500', 'bg-gray-600', $st ?: '—'];
-                        }
+                        $isExpanded = in_array($group['id'], $expandedCategories) || !$hasMapping;
+                        $gt = $group['totals'];
                     @endphp
-                    <tr class="border-b hover:bg-yellow-500/[0.03] transition cursor-pointer group"
-                        style="border-color:#2a2e39;" wire:click="openCampaign({{ $camp->id }})">
-                        <td class="p-4 text-center text-gray-600 text-xs font-mono">{{ $i + 1 }}</td>
-                        <td class="p-4">
-                            <div
-                                class="text-gray-200 font-medium max-w-sm leading-snug group-hover:text-white transition">
-                                {{ $camp->name }}</div>
-                            @if ($camp->entity)
-                                <span class="inline-flex items-center gap-1 mt-1 text-xs px-2 py-0.5 rounded-full"
-                                    style="background-color:{{ $camp->entity->color ?? '#374151' }}20; color:{{ $camp->entity->color ?? '#9ca3af' }}">
-                                    {{ $camp->entity->name }}
-                                </span>
-                            @else
+
+                    {{-- Group Header Row --}}
+                    @if ($hasMapping)
+                        <tr class="bg-[#111317] border-b border-[#2a2e39] cursor-pointer hover:bg-white/[0.02] transition"
+                            wire:click="toggleCategory('{{ $group['id'] }}')">
+                            <td class="p-4 text-center">
                                 <span
-                                    class="inline-flex items-center gap-1 mt-1 text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-600">Нераспределено</span>
-                            @endif
-                        </td>
-                        <td class="p-4 text-right"><span
-                                class="text-yellow-400 font-bold">₽{{ number_format($camp->period_spend, 0, ',', ' ') }}</span>
-                        </td>
-                        <td class="p-4 text-right text-blue-400 font-medium">
-                            {{ number_format($camp->period_clicks, 0, ',', ' ') }}</td>
-                        <td class="p-4 text-right text-gray-400">
-                            {{ number_format($camp->period_impressions, 0, ',', ' ') }}</td>
-                        <td class="p-4 text-right text-purple-400">
-                            ₽{{ number_format($camp->period_cpc, 0, ',', ' ') }}</td>
-                        <td class="p-4 text-right text-pink-400">{{ number_format($camp->period_ctr, 2, ',', '.') }}%
-                        </td>
-                        <td class="p-4 text-center">
-                            <span
-                                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium {{ $badge[0] }}">
-                                <span class="w-1.5 h-1.5 rounded-full {{ $badge[1] }}"></span>
-                                {{ $badge[2] }}
-                            </span>
-                        </td>
-                    </tr>
-                @empty
+                                    class="text-xs text-gray-500 transition-transform duration-200 inline-block {{ $isExpanded ? 'rotate-90' : '' }}">▶</span>
+                            </td>
+                            <td class="p-4 font-bold text-yellow-500 uppercase tracking-wider text-[11px]">
+                                {{ $group['name'] }}
+                                <span
+                                    class="ml-2 text-[10px] text-gray-600 font-normal">({{ count($group['campaigns']) }})</span>
+                            </td>
+                            <td class="p-4 text-right font-bold text-yellow-500/80">
+                                ₽{{ number_format($gt['spend'], 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-blue-400/80">
+                                {{ number_format($gt['clicks'], 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-gray-500/80">
+                                {{ number_format($gt['impressions'], 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-purple-400/80">
+                                ₽{{ number_format($gt['cpc'], 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-pink-400/80">{{ number_format($gt['ctr'], 2, ',', '.') }}%
+                            </td>
+
+                            <td class="p-4"></td>
+                        </tr>
+                    @endif
+
+                    @if ($isExpanded)
+                        @foreach ($group['campaigns'] as $i => $camp)
+                            @php
+                                $st = $camp->normalized_status;
+                                $isStale = is_null($camp->last_synced_at);
+                                if ($isStale) {
+                                    $badge = ['bg-gray-700/50 text-gray-600', 'bg-gray-700', 'Устарело'];
+                                } elseif ($st === 'serving') {
+                                    $badge = ['bg-green-500/10 text-green-400', 'bg-green-400 animate-pulse', 'Показы'];
+                                } elseif ($st === 'active') {
+                                    $badge = ['bg-teal-500/10 text-teal-400', 'bg-teal-500', 'Включена'];
+                                } elseif ($st === 'suspended' || $st === 'paused') {
+                                    $badge = ['bg-yellow-500/10 text-yellow-500', 'bg-yellow-500', 'Пауза'];
+                                } elseif ($st === 'archived') {
+                                    $badge = ['bg-gray-500/10 text-gray-600', 'bg-gray-700', 'Архив'];
+                                } elseif ($st === 'ended') {
+                                    $badge = ['bg-gray-500/10 text-gray-400', 'bg-gray-500', 'Завершена'];
+                                } elseif ($st === 'stopped') {
+                                    $badge = ['bg-red-500/10 text-red-400', 'bg-red-500', 'Остановлена'];
+                                } elseif ($st === 'moderation') {
+                                    $badge = ['bg-blue-500/10 text-blue-400', 'bg-blue-400', 'Модерация'];
+                                } elseif ($st === 'rejected') {
+                                    $badge = ['bg-red-500/10 text-red-400', 'bg-red-600', 'Отклонена'];
+                                } elseif ($st === 'draft') {
+                                    $badge = ['bg-blue-500/10 text-blue-400', 'bg-blue-500', 'Черновик'];
+                                } else {
+                                    $badge = ['bg-gray-500/10 text-gray-500', 'bg-gray-600', $st ?: '—'];
+                                }
+                            @endphp
+                            <tr class="border-b border-[#2a2e39] hover:bg-yellow-500/[0.03] transition cursor-pointer group"
+                                wire:click="openCampaign({{ $camp->id }})">
+                                <td class="p-4 text-center text-gray-600 text-xs font-mono">
+                                    {{ $hasMapping ? '↳' : $i + 1 }}
+                                </td>
+                                <td class="p-4">
+                                    <div
+                                        class="text-gray-200 font-medium max-w-sm leading-snug group-hover:text-white transition">
+                                        {{ $camp->name }}
+                                    </div>
+                                    @if ($camp->entity)
+                                        <span
+                                            class="inline-flex items-center gap-1 mt-1 text-xs px-2 py-0.5 rounded-full"
+                                            style="background-color:{{ $camp->entity->color ?? '#374151' }}20; color:{{ $camp->entity->color ?? '#9ca3af' }}">
+                                            {{ $camp->entity->name }}
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="p-4 text-right">
+                                    <span
+                                        class="text-yellow-400 font-bold">₽{{ number_format($camp->period_spend, 0, ',', ' ') }}</span>
+                                </td>
+                                <td class="p-4 text-right text-blue-400 font-medium">
+                                    {{ number_format($camp->period_clicks, 0, ',', ' ') }}
+                                </td>
+                                <td class="p-4 text-right text-gray-400">
+                                    {{ number_format($camp->period_impressions, 0, ',', ' ') }}
+                                </td>
+                                <td class="p-4 text-right text-purple-400">
+                                    ₽{{ number_format($camp->period_cpc, 0, ',', ' ') }}
+                                </td>
+                                <td class="p-4 text-right text-pink-400">
+                                    {{ number_format($camp->period_ctr, 2, ',', '.') }}%
+                                </td>
+
+                                <td class="p-4 text-center">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium {{ $badge[0] }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $badge[1] }}"></span>
+                                        {{ $badge[2] }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endif
+                @endforeach
+
+                @if (empty($groups))
                     <tr>
                         <td colspan="8" class="p-12 text-center text-gray-600">
                             <div class="text-4xl mb-3">📊</div>
                             <div class="text-sm">Нет данных за выбранный период</div>
                         </td>
                     </tr>
-                @endforelse
+                @endif
             </tbody>
-            @if (count($campaigns) > 0)
+            @if (!empty($groups))
                 <tfoot>
                     <tr class="border-t text-sm font-bold" style="border-color:#2a2e39; background-color:#111317;">
                         <td class="p-4" colspan="2">Итого</td>
@@ -358,6 +410,7 @@
                         </td>
                         <td class="p-4 text-right text-pink-400">{{ number_format($totals['ctr'], 2, ',', '.') }}%
                         </td>
+
                         <td class="p-4"></td>
                     </tr>
                 </tfoot>

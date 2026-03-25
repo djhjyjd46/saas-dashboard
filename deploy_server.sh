@@ -8,13 +8,19 @@ cd "$REMOTE_PATH"
 echo "=== Deployment started at $(date) ==="
 echo "Working directory: $(pwd)"
 
-# Detect PHP 8.4 specifically for ISPmanager
+# Detect best available PHP version (>= 8.2)
 if [ -f /opt/php84/bin/php ]; then
     PHP_BIN="/opt/php84/bin/php"
-elif [ -f /usr/bin/php8.4 ]; then
-    PHP_BIN="/usr/bin/php8.4"
-elif [ -f /usr/bin/php84 ]; then
-    PHP_BIN="/usr/bin/php84"
+elif [ -f /opt/php83/bin/php ]; then
+    PHP_BIN="/opt/php83/bin/php"
+elif [ -f /opt/php82/bin/php ]; then
+    PHP_BIN="/opt/php82/bin/php"
+elif command -v php8.4 > /dev/null; then
+    PHP_BIN=$(command -v php8.4)
+elif command -v php8.3 > /dev/null; then
+    PHP_BIN=$(command -v php8.3)
+elif command -v php8.2 > /dev/null; then
+    PHP_BIN=$(command -v php8.2)
 else
     PHP_BIN="php"
 fi
@@ -64,5 +70,26 @@ $PHP_BIN artisan sync:yandex-campaigns || echo "Warning: campaign sync failed, c
 
 echo "Clearing DB cache after migration..."
 $PHP_BIN artisan cache:clear
+
+echo "=== DB DIAGNOSTIC ==="
+$PHP_BIN artisan tinker --execute="
+\$users = DB::table('users')->select('id','name','email','role')->get();
+echo '--- USERS ---' . PHP_EOL;
+foreach(\$users as \$u) echo \"  id={\$u->id} role={\$u->role} email={\$u->email}\" . PHP_EOL;
+
+\$leads = DB::table('leads')->select('user_id', DB::raw('COUNT(*) as cnt'))->groupBy('user_id')->get();
+echo '--- LEADS by user_id ---' . PHP_EOL;
+foreach(\$leads as \$l) echo \"  user_id={\$l->user_id} count={\$l->cnt}\" . PHP_EOL;
+
+\$deals = DB::table('deals')->select('user_id', DB::raw('COUNT(*) as cnt'))->groupBy('user_id')->get();
+echo '--- DEALS by user_id ---' . PHP_EOL;
+foreach(\$deals as \$d) echo \"  user_id={\$d->user_id} count={\$d->cnt}\" . PHP_EOL;
+
+\$wonDeals = DB::table('deals')->select('user_id', DB::raw('COUNT(*) as cnt'))->where('status','won')->groupBy('user_id')->get();
+echo '--- WON DEALS by user_id ---' . PHP_EOL;
+foreach(\$wonDeals as \$d) echo \"  user_id={\$d->user_id} won={\$d->cnt}\" . PHP_EOL;
+" 2>&1 || echo "Diagnostic failed (non-critical)"
+echo "=== END DIAGNOSTIC ==="
+
 
 echo "=== Deployment finished successfully! ==="

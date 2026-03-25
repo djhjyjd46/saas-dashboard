@@ -40,57 +40,109 @@ class SourcesList extends Component
         $startDt = Carbon::parse($start)->startOfDay();
         $endDt   = Carbon::parse($end)->endOfDay();
 
-        // Yandex Direct spend from AdStat
-        $yandexSpend = AdStat::whereBetween('date', [$start, $end])->sum('spend');
+        $user = auth()->user();
+        $isAdmin = $user?->role === 'admin';
+        $userSettings = $user?->campaignSettings() ?? [];
+        $allowedIds = $isAdmin ? null : ($userSettings['allowed_external_ids'] ?? []);
 
-        // CRM data grouped by entity (source proxy)
-        $entities = Entity::where('is_active', true)->get();
+        // Yandex Direct spend filtered by allowed campaigns
+        $yandexSpend = AdStat::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
+            if (!$isAdmin) {
+                $q->withoutGlobalScopes()->whereIn('external_id', $allowedIds ?? []);
+            }
+        })->whereBetween('date', [$start, $end])->sum('spend');
 
-        $sources = [];
-        $totalLeads = Lead::whereBetween('created_at_source', [$startDt, $endDt])->count() ?: 0;
+        // Total CRM Leads for the tenant/period
+        $totalLeads = (int) Lead::whereBetween('created_at_source', [$startDt, $endDt])->count();
 
-        // Yandex source — all AdStat spend + CRM leads attributed to entities
-        $yandexLeads   = Lead::whereNotNull('entity_id')->whereBetween('created_at_source', [$startDt, $endDt])->count();
-        $yandexSales   = Deal::whereHas('lead', fn($q) => $q->whereNotNull('entity_id')->whereBetween('created_at_source', [$startDt, $endDt]))->count();
-        $yandexRevenue = Deal::whereHas('lead', fn($q) => $q->whereNotNull('entity_id')->whereBetween('created_at_source', [$startDt, $endDt]))->sum('revenue');
+        // Yandex source — Leads with utm_campaign from allowed list OR non-empty campaign_id
+        $yandexLeads = Lead::whereBetween('created_at_source', [$startDt, $endDt])
+            ->where(function($q) use ($isAdmin, $allowedIds) {
+                if ($isAdmin) {
+                    $q->whereNotNull('meta_data->campaign_id')
+                      ->orWhereNotNull('meta_data->utm_campaign');
+                } else {
+                    $allowedUtms = \App\Models\AdCampaign::withoutGlobalScopes()
+                        ->whereIn('external_id', $allowedIds ?? [])
+                        ->pluck('utm_campaign')
+                        ->filter()
+                        ->toArray();
+                    $allAllowedRefs = array_unique(array_merge($allowedIds ?? [], $allowedUtms));
 
-        // Other leads (no entity = direct/unknown)
-        $otherLeads   = Lead::whereNull('entity_id')->whereBetween('created_at_source', [$startDt, $endDt])->count();
-        $otherSales   = Deal::whereHas('lead', fn($q) => $q->whereNull('entity_id')->whereBetween('created_at_source', [$startDt, $endDt]))->count();
-        $otherRevenue = Deal::whereHas('lead', fn($q) => $q->whereNull('entity_id')->whereBetween('created_at_source', [$startDt, $endDt]))->sum('revenue');
+                    $q->whereIn('meta_data->campaign_id', $allAllowedRefs)
+                      ->orWhereIn('meta_data->utm_campaign', $allAllowedRefs);
+                }
+            })->count();
 
-        // If CRM is empty, show spend-only mode (Yandex data only)
-        if ($totalLeads === 0) {
-            $sources = [[
-                'name'       => 'Яндекс.Директ',
-                'leads'      => '—',
-                'sales'      => '—',
-                'revenue'    => $yandexSpend,
-                'percentage' => 100,
-                'label'      => 'расход',
-            ]];
-        } else {
-            $pct = fn($n) => $totalLeads > 0 ? round($n / $totalLeads * 100) : 0;
-            $sources = [
-                [
-                    'name' => 'Яндекс.Директ',
-                    'leads' => $yandexLeads,
-                    'sales' => $yandexSales,
-                    'revenue' => $yandexRevenue,
-                    'percentage' => $pct($yandexLeads),
-                    'label' => 'лиды',
-                ],
-                [
-                    'name' => 'Прочее / Прямые',
-                    'leads' => $otherLeads,
-                    'sales' => $otherSales,
-                    'revenue' => $otherRevenue,
-                    'percentage' => $pct($otherLeads),
-                    'label' => 'лиды',
-                ],
-            ];
-            $sources = array_filter($sources, fn($s) => $s['leads'] > 0 || $s['revenue'] > 0);
-        }
+        $yandexSales = Deal::whereHas('lead', function ($q) use ($startDt, $endDt, $isAdmin, $allowedIds) {
+             $q->whereBetween('created_at_source', [$startDt, $endDt])
+               ->where(function($qq) use ($isAdmin, $allowedIds) {
+                   if ($isAdmin) {
+                       $qq->whereNotNull('meta_data->campaign_id')
+                         ->orWhereNotNull('meta_data->utm_campaign');
+                   } else {
+                       $allowedUtms = \App\Models\AdCampaign::withoutGlobalScopes()
+                           ->whereIn('external_id', $allowedIds ?? [])
+                           ->pluck('utm_campaign')
+                           ->filter()
+                           ->toArray();
+                       $allAllowedRefs = array_unique(array_merge($allowedIds ?? [], $allowedUtms));
+
+                       $qq->whereIn('meta_data->campaign_id', $allAllowedRefs)
+                          ->orWhereIn('meta_data->utm_campaign', $allAllowedRefs);
+                   }
+               });
+        })->count();
+
+        $yandexRevenue = Deal::whereHas('lead', function ($q) use ($startDt, $endDt, $isAdmin, $allowedIds) {
+             $q->whereBetween('created_at_source', [$startDt, $endDt])
+               ->where(function($qq) use ($isAdmin, $allowedIds) {
+                   if ($isAdmin) {
+                       $qq->whereNotNull('meta_data->campaign_id')
+                         ->orWhereNotNull('meta_data->utm_campaign');
+                   } else {
+                       $allowedUtms = \App\Models\AdCampaign::withoutGlobalScopes()
+                           ->whereIn('external_id', $allowedIds ?? [])
+                           ->pluck('utm_campaign')
+                           ->filter()
+                           ->toArray();
+                       $allAllowedRefs = array_unique(array_merge($allowedIds ?? [], $allowedUtms));
+
+                       $qq->whereIn('meta_data->campaign_id', $allAllowedRefs)
+                          ->orWhereIn('meta_data->utm_campaign', $allAllowedRefs);
+                   }
+               });
+        })->sum('revenue');
+
+        $otherLeads = $totalLeads - $yandexLeads;
+        $otherSales = Deal::whereHas('lead', function ($q) use ($startDt, $endDt) {
+             $q->whereBetween('created_at_source', [$startDt, $endDt]);
+        })->count() - $yandexSales;
+
+        $otherRevenue = Deal::whereHas('lead', function ($q) use ($startDt, $endDt) {
+             $q->whereBetween('created_at_source', [$startDt, $endDt]);
+        })->sum('revenue') - $yandexRevenue;
+
+        $pct = fn($n) => $totalLeads > 0 ? round($n / $totalLeads * 100) : 0;
+        $sources = [
+            [
+                'name' => 'Яндекс.Директ',
+                'leads' => $yandexLeads,
+                'sales' => $yandexSales,
+                'revenue' => $yandexRevenue,
+                'percentage' => $pct($yandexLeads),
+                'label' => 'лиды',
+            ],
+            [
+                'name' => 'Прочее / Прямые',
+                'leads' => $otherLeads,
+                'sales' => $otherSales,
+                'revenue' => $otherRevenue,
+                'percentage' => $pct($otherLeads),
+                'label' => 'лиды',
+            ],
+        ];
+        $sources = array_filter($sources, fn($s) => $s['leads'] > 0 || $s['revenue'] > 0);
 
         return view('livewire.sources-list', [
             'sources'      => collect($sources),

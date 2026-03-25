@@ -25,11 +25,22 @@ class User extends Authenticatable
         'role',
         'theme',
         'tenant_id',
+        'settings',
     ];
 
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isClient(): bool
+    {
+        return $this->role === 'client';
     }
 
     /**
@@ -52,6 +63,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'settings' => 'array',
+        ];
+    }
+
+    /**
+     * Returns effective campaign settings for the user with tenant fallback.
+     */
+    public function campaignSettings(): array
+    {
+        $userSettings = is_array($this->settings) ? $this->settings : [];
+        $tenantSettings = is_array($this->tenant?->settings) ? $this->tenant->settings : [];
+
+        return [
+            'allowed_external_ids' => $userSettings['allowed_external_ids'] ?? ($tenantSettings['allowed_external_ids'] ?? []),
+            'category_mapping' => $userSettings['category_mapping'] ?? ($tenantSettings['category_mapping'] ?? []),
+            'category_mapping_ui' => $userSettings['category_mapping_ui'] ?? ($tenantSettings['category_mapping_ui'] ?? []),
         ];
     }
 }

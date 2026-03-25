@@ -3,15 +3,31 @@
 namespace App\Models;
 
 use App\Models\Scopes\TenantScope;
+use App\Models\Scopes\UserScope;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AdCampaign extends Model
 {
+    use HasFactory;
     protected static function booted()
     {
         static::addGlobalScope(new TenantScope);
     }
-    protected $fillable = ['tenant_id', 'external_id', 'name', 'source', 'status', 'last_synced_at'];
+    protected $fillable = [
+        'tenant_id',
+        'user_id',
+        'external_id',
+        'name',
+        'source',
+        'status',
+        'last_synced_at',
+        'utm_campaign',
+        'tracking_params',
+    ];
+    protected $casts = [
+        'last_synced_at' => 'datetime',
+    ];
 
     public function tenant()
     {
@@ -42,7 +58,8 @@ class AdCampaign extends Model
         if (str_starts_with($upper, 'SUSPENDED')) return 'suspended';
         if (str_contains($upper, 'DRAFT'))       return 'draft';
         if (str_starts_with($upper, 'OFF'))      return 'paused';
-        if (str_starts_with($upper, 'ON'))       return 'active';
+        if (str_starts_with($upper, 'ON') || str_contains($upper, 'ACCEPTED') || str_contains($upper, 'SERVING')) return 'active';
+        if (str_contains($upper, 'MODERATION'))  return 'moderation';
 
         return 'unknown';
     }

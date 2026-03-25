@@ -36,36 +36,46 @@ class DashboardStats extends Component
         $start = $this->startDate;
         $end = $this->endDate;
 
-        $totalSpend = AdStat::whereHas('adCampaign')->whereBetween('date', [$start, $end])->sum('spend');
+        $user = auth()->user();
+        $isAdmin = $user?->role === 'admin';
+        $userSettings = $user?->campaignSettings() ?? [];
+        $allowedIds = $isAdmin ? null : ($userSettings['allowed_external_ids'] ?? []);
 
-        $income = Deal::whereHas('lead', function ($q) use ($start, $end) {
-            $q->whereBetween('created_at_source', [Carbon::parse($start)->startOfDay(), Carbon::parse($end)->endOfDay()]);
-        })->sum('revenue');
+        $totalSpend = AdStat::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
+            if (!$isAdmin) {
+                $q->withoutGlobalScopes()->whereIn('external_id', $allowedIds ?? []);
+            }
+        })->whereBetween('date', [$start, $end])->sum('spend');
 
-        $leadsCount = Lead::whereBetween('created_at_source', [
+        // CRM leads: all leads for this user in period (UserScope already isolates by user_id)
+        $leadsQuery = Lead::whereBetween('created_at_source', [
             Carbon::parse($start)->startOfDay(),
             Carbon::parse($end)->endOfDay()
-        ])->count();
+        ]);
+        $leadsCount = $leadsQuery->count();
 
-        $qualLeadsCount = Lead::whereHas('deal')
+        // Qualified leads (with deals) — also unfiltered by campaign
+        $qualLeadsQuery = Lead::whereHas('deal')
             ->whereBetween('created_at_source', [
                 Carbon::parse($start)->startOfDay(),
                 Carbon::parse($end)->endOfDay()
-            ])->count();
+            ]);
+        $qualLeadsCount = $qualLeadsQuery->count();
+
+        $cpl = $leadsCount > 0 ? $totalSpend / $leadsCount : 0;
 
         return view('livewire.dashboard-stats', [
             'spend'              => number_format($totalSpend, 0, ',', ' '),
-            'income'             => number_format($income ?? 0, 0, ',', ' '),
+            'cpl'                => number_format($cpl ?? 0, 0, ',', ' '),
             'leads'              => $leadsCount,
             'qualLeads'          => $qualLeadsCount,
-            'spendSparkline'     => $this->getSparklineData(AdStat::class, 'spend', $start, $end),
-            'incomeSparkline'    => $this->getSparklineData(Deal::class, 'revenue', $start, $end, true),
-            'leadsSparkline'     => $this->getSparklineData(Lead::class, 'count', $start, $end),
-            'qualLeadsSparkline' => $this->getSparklineData(Lead::class, 'count', $start, $end, false, true),
+            'spendSparkline'     => $this->getSparklineData(AdStat::class, 'spend', $start, $end, false, false, $isAdmin, $allowedIds),
+            'leadsSparkline'     => $this->getLeadsSparklineData($start, $end, $isAdmin, $allowedIds),
+            'qualLeadsSparkline' => $this->getSparklineData(Lead::class, 'count', $start, $end, false, true, $isAdmin, $allowedIds),
         ]);
     }
 
-    private function getSparklineData($model, $field, $start, $end, $isDeal = false, $isQual = false)
+    private function getLeadsSparklineData($start, $end, bool $isAdmin = true, ?array $allowedIds = null): string
     {
         $startDate = Carbon::parse($start);
         $endDate = Carbon::parse($end);
@@ -74,24 +84,64 @@ class DashboardStats extends Component
 
         for ($i = 0; $i < $days; $i++) {
             $currentDate = $startDate->copy()->addDays($i)->format('Y-m-d');
+
+            $query = Lead::whereBetween('created_at_source', [
+                Carbon::parse($currentDate)->startOfDay(),
+                Carbon::parse($currentDate)->endOfDay()
+            ]);
+
+            $crmLeads = (int) $query->count();
+            $points[] = $crmLeads;
+        }
+
+        if (empty($points) || max($points) == 0) return "0,15 100,15";
+
+        $max = max($points);
+        $svgPoints = "";
+        $width = 100;
+        $height = 20;
+        for ($i = 0; $i < count($points); $i++) {
+            $value = $points[$i];
+            $x = ($i / max(count($points) - 1, 1)) * $width;
+            $y = $height - (($value / $max) * $height * 0.8) - 2;
+            $svgPoints .= "$x,$y ";
+        }
+
+        return trim($svgPoints);
+    }
+
+    private function getSparklineData($model, $field, $start, $end, $isDeal = false, $isQual = false, bool $isAdmin = true, ?array $allowedIds = null)
+    {
+        $startDate = Carbon::parse($start);
+        $endDate = Carbon::parse($end);
+        $days = $startDate->diffInDays($endDate) + 1;
+        $points = [];
+
+        for ($i = 0; $i < $days; $i++) {
+            $currentDate = $startDate->copy()->addDays($i)->format('Y-m-d');
+
             if ($field === 'count') {
-                $query = $model::whereBetween('created_at_source', [
-                    Carbon::parse($currentDate)->startOfDay(),
-                    Carbon::parse($currentDate)->endOfDay()
-                ]);
-                if ($isQual) $query->whereHas('deal');
-                $val = $query->count();
-            } else {
-                if ($isDeal) {
-                    $val = $model::whereHas('lead', function ($q) use ($currentDate) {
-                        $q->whereBetween('created_at_source', [
-                            Carbon::parse($currentDate)->startOfDay(),
-                            Carbon::parse($currentDate)->endOfDay()
-                        ]);
-                    })->sum($field);
+                if (str_ends_with($model, 'Lead')) {
+                    $query = $model::whereBetween('created_at_source', [
+                        Carbon::parse($currentDate)->startOfDay(),
+                        Carbon::parse($currentDate)->endOfDay()
+                    ]);
+
+                    if ($isQual) $query->whereHas('deal');
+                    $val = $query->count();
                 } else {
-                    $val = $model::whereHas('adCampaign')->whereBetween('date', [$currentDate, $currentDate])->sum($field);
+                    $val = $model::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
+                        if (!$isAdmin && !empty($allowedIds)) {
+                            $q->whereIn('external_id', $allowedIds);
+                        }
+                    })->whereBetween('date', [$currentDate, $currentDate])->sum($field);
                 }
+            } else {
+                $val = $model::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
+                    if (!$isAdmin && !empty($allowedIds)) {
+                        $q->whereIn('external_id', $allowedIds);
+                    }
+                })->whereBetween('date', [$currentDate, $currentDate])->sum($field);
             }
             $points[] = $val;
         }
@@ -102,8 +152,9 @@ class DashboardStats extends Component
         $svgPoints = "";
         $width = 100;
         $height = 20;
-        foreach ($points as $index => $value) {
-            $x = ($index / max(count($points) - 1, 1)) * $width;
+        for ($i = 0; $i < count($points); $i++) {
+            $value = $points[$i];
+            $x = ($i / max(count($points) - 1, 1)) * $width;
             $y = $height - (($value / $max) * $height * 0.8) - 2;
             $svgPoints .= "$x,$y ";
         }

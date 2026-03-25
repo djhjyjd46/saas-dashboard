@@ -40,7 +40,7 @@
     </button>
 
     <div x-show="open" @mousedown.away="open = false" x-transition
-        class="absolute right-0 mt-2 w-72 bg-[#1a1d24] border border-[#2a2e39] rounded-xl shadow-2xl z-50 p-4 space-y-4"
+        class="absolute right-0 mt-2 w-72 bg-[#1a1d24] border border-[#2a2e39] rounded-xl shadow-2xl z-50 p-4 space-y-4 top-6"
         style="display: none; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5);">
 
         {{-- Quick presets --}}

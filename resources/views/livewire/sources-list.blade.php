@@ -1,9 +1,6 @@
 <div class="p-6 rounded-2xl border h-full" style="background-color: #1a1d24; border-color: #2a2e39;">
     <div class="flex items-center justify-between mb-6">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Источники лидов</h3>
-        @if ($crmIsEmpty)
-            <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500/70">нет данных CRM</span>
-        @endif
     </div>
 
     <div class="space-y-6">
@@ -31,18 +28,9 @@
                     </span>
                     <span class="text-yellow-500 font-medium">
                         {{ number_format($source['revenue'], 0, ',', ' ') }} ₽
-                        @if ($crmIsEmpty)
-                            <span class="text-gray-600 font-normal">(расход)</span>
-                        @endif
                     </span>
                 </div>
             </div>
         @endforeach
     </div>
-
-    @if ($crmIsEmpty)
-        <p class="mt-6 text-xs text-gray-700 leading-relaxed">
-            Лиды и продажи появятся после синхронизации с amoCRM.
-        </p>
-    @endif
 </div>

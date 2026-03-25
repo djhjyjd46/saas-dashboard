@@ -73,42 +73,35 @@
             @endif
         </nav>
     @else
-        <div class="px-6 space-y-8 flex-1">
-            <!-- Brand Selector for Clients -->
-            <div class="space-y-4">
-                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Проект</p>
-                <div class="space-y-2">
-                    <button wire:click="setBrand('VUZ')"
-                        class="w-full flex items-center gap-3 p-3 rounded-xl border transition-all {{ ($activeBrand ?? '') === 'VUZ' ? 'border-yellow-500 bg-yellow-500/5 text-white' : 'border-[#2a2e39] text-gray-400 hover:border-gray-600' }}">
-                        <div
-                            class="w-2 h-2 rounded-full {{ ($activeBrand ?? '') === 'VUZ' ? 'bg-yellow-500' : 'bg-gray-600' }}">
-                        </div>
-                        <span class="text-sm font-bold">ВУЗ</span>
-                    </button>
-                    <button wire:click="setBrand('College')"
-                        class="w-full flex items-center gap-3 p-3 rounded-xl border transition-all {{ ($activeBrand ?? '') === 'College' ? 'border-yellow-500 bg-yellow-500/5 text-white' : 'border-[#2a2e39] text-gray-400 hover:border-gray-600' }}">
-                        <div
-                            class="w-2 h-2 rounded-full {{ ($activeBrand ?? '') === 'College' ? 'bg-yellow-500' : 'bg-gray-600' }}">
-                        </div>
-                        <span class="text-sm font-bold">Колледж</span>
-                    </button>
-                </div>
-            </div>
+        <nav class="mt-4 px-4 space-y-2 flex-1">
+            @if (Route::has('dashboard'))
+                <a href="{{ route('dashboard') }}"
+                    class="{{ request()->routeIs('dashboard') ? $navActive : $navInactive }} block px-4 py-2 rounded-lg font-medium transition">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                            </path>
+                        </svg>
+                        Сводка
+                    </span>
+                </a>
+            @endif
 
-            <!-- Client Actions -->
-            <div class="pt-4 border-t border-[#2a2e39]">
-                <button wire:click="syncData" wire:loading.attr="disabled"
-                    class="w-full py-3 px-4 rounded-xl bg-[#2a2e39] text-xs font-bold text-gray-300 hover:text-white hover:bg-[#374151] transition flex items-center justify-center gap-2">
-                    <svg wire:loading class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                            stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z">
-                        </path>
-                    </svg>
-                    <span>Обновить данные</span>
-                </button>
-            </div>
-        </div>
+            @if (Route::has('integrations'))
+                <a href="{{ route('integrations') }}"
+                    class="{{ request()->routeIs('integrations') ? $navActive : $navInactive }} block px-4 py-2 rounded-lg font-medium transition">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z">
+                            </path>
+                        </svg>
+                        Интеграции
+                    </span>
+                </a>
+            @endif
+        </nav>
     @endif
 
     <div class="mt-auto p-4 border-t border-[#2a2e39] bg-[#181b21]/50 backdrop-blur-sm">
@@ -116,7 +109,7 @@
             <div class="flex items-center gap-3">
                 <div
                     class="w-9 h-9 bg-gradient-to-tr from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center font-bold text-black border border-white/10 shadow-lg">
-                    {{ substr(auth()->user()->name ?? 'A', 0, 1) }}
+                    {{ mb_substr(auth()->user()->name ?? 'A', 0, 1) }}
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-white truncate">{{ auth()->user()->name }}</p>

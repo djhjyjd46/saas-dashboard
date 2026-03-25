@@ -33,14 +33,35 @@ class SalesFunnel extends Component
         $start = $this->startDate;
         $end   = $this->endDate;
 
-        // Real Yandex Clicks filtered by period
-        $clicks = AdStat::whereBetween('date', [$start, $end])->sum('clicks');
+        $user = auth()->user();
+        $isAdmin = $user?->role === 'admin';
+        $userSettings = $user?->campaignSettings() ?? [];
+        $allowedIds = $isAdmin ? null : ($userSettings['allowed_external_ids'] ?? []);
 
-        // Real Leads
-        $leads = Lead::whereBetween('created_at_source', [Carbon::parse($start)->startOfDay(), Carbon::parse($end)->endOfDay()])->count();
+        // Real Yandex Clicks filtered by period and allowed campaigns
+        $clicks = AdStat::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
+            if (!$isAdmin) {
+                $q->withoutGlobalScopes()->whereIn('external_id', $allowedIds ?? []);
+            }
+        })->whereBetween('date', [$start, $end])->sum('clicks');
 
+        // CRM leads: count all leads for this user (UserScope handles isolation)
+        $crmLeadsCount = (int) Lead::whereBetween('created_at_source', [
+            Carbon::parse($start)->startOfDay(),
+            Carbon::parse($end)->endOfDay()
+        ])->count();
+
+        $leads = $crmLeadsCount;
+
+        // Sales: count won deals where the LEAD was created in the selected period
+        // (consistent with crmLeadsCount — same period, same cohort)
         $sales = Deal::where('status', 'won')
-            ->whereBetween('closed_at', [Carbon::parse($start)->startOfDay(), Carbon::parse($end)->endOfDay()])
+            ->whereHas('lead', function ($q) use ($start, $end) {
+                $q->whereBetween('created_at_source', [
+                    Carbon::parse($start)->startOfDay(),
+                    Carbon::parse($end)->endOfDay(),
+                ]);
+            })
             ->count();
 
         $convClickToLead = $clicks > 0 ? ($leads / $clicks) * 100 : 0;

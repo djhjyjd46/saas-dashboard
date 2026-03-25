@@ -1,7 +1,16 @@
-<div class="relative" x-data="{
+<div class="relative flex items-center gap-2" x-data="{
     open: false,
+    tipOpen: false,
+    tipText: '',
+    tipTone: 'yellow',
     fpStart: null,
     fpEnd: null,
+    showTip(text, tone = 'yellow') {
+        this.tipText = text;
+        this.tipTone = tone;
+        this.tipOpen = true;
+        setTimeout(() => this.tipOpen = false, 2000);
+    },
     initPickers() {
         this.fpStart = flatpickr(this.$refs.startInput, {
             locale: 'ru',
@@ -26,7 +35,33 @@
             }
         });
     }
-}" x-init="initPickers()">
+}" x-init="initPickers()"
+    x-on:sync-cooldown.window="showTip($event.detail.message, 'yellow')"
+    x-on:sync-success.window="showTip($event.detail.message, 'green')"
+    x-on:sync-error.window="showTip($event.detail.message, 'red')">
+
+    <div class="relative">
+        <button wire:click="syncData" wire:loading.attr="disabled"
+            class="flex items-center gap-2 text-sm text-gray-300 border rounded-lg px-3 py-1.5 hover:bg-[#2a2e39] transition disabled:opacity-50"
+            style="border-color: #2a2e39;">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span wire:loading.remove wire:target="syncData">Обновить</span>
+            <span wire:loading wire:target="syncData">Обновляю...</span>
+        </button>
+
+        <div x-show="tipOpen" x-transition
+            class="absolute left-1/2 -translate-x-1/2 -bottom-11 px-3 py-2 rounded-lg text-xs whitespace-nowrap z-50"
+            :class="{
+                'bg-[#111317] border border-yellow-500/30 text-yellow-400': tipTone === 'yellow',
+                'bg-[#111317] border border-green-500/30 text-green-400': tipTone === 'green',
+                'bg-[#111317] border border-red-500/30 text-red-400': tipTone === 'red'
+            }">
+            <span x-text="tipText"></span>
+        </div>
+    </div>
 
     <button @click="open = !open"
         class="flex items-center gap-4 text-sm text-gray-400 border rounded-lg px-3 py-1.5 hover:bg-[#2a2e39] transition"
@@ -40,7 +75,7 @@
     </button>
 
     <div x-show="open" @mousedown.away="open = false" x-transition
-        class="absolute right-0 mt-2 w-72 bg-[#1a1d24] border border-[#2a2e39] rounded-xl shadow-2xl z-50 p-4 space-y-4"
+        class="absolute right-0 mt-2 w-72 bg-[#1a1d24] border border-[#2a2e39] rounded-xl shadow-2xl z-50 p-4 space-y-4 top-6"
         style="display: none; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5);">
 
         {{-- Quick presets --}}

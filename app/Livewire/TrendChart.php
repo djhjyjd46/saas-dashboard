@@ -55,9 +55,17 @@ class TrendChart extends Component
         $end   = Carbon::parse($this->endDate);
         $days  = $start->diffInDays($end);
 
-        // Group spend by date
-        $stats = AdStat::whereHas('adCampaign')
-            ->whereBetween('date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+        $user = auth()->user();
+        $isAdmin = $user?->role === 'admin';
+        $userSettings = $user?->campaignSettings() ?? [];
+        $allowedIds = $isAdmin ? null : ($userSettings['allowed_external_ids'] ?? []);
+
+        // Group spend by date, filtered by allowed campaigns
+        $stats = AdStat::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
+            if (!$isAdmin) {
+                $q->withoutGlobalScopes()->whereIn('external_id', $allowedIds ?? []);
+            }
+        })->whereBetween('date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
             ->orderBy('date')
             ->get()
             ->groupBy('date');

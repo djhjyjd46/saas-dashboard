@@ -19,7 +19,14 @@ class YandexAuthController extends Controller
         }
 
         $redirectUri = route('yandex.callback');
-        $url = "https://oauth.yandex.ru/authorize?response_type=code&client_id={$clientId}&state=" . csrf_token() . "&redirect_uri={$redirectUri}&force_confirm=1";
+        $scope = implode(' ', [
+            'direct:api',    // Яндекс.Директ
+            'metrika:read',  // Яндекс.Метрика — чтение целей
+        ]);
+        $url = "https://oauth.yandex.ru/authorize?response_type=code&client_id={$clientId}&state=" . csrf_token()
+            . "&redirect_uri=" . urlencode($redirectUri)
+            . "&scope=" . urlencode($scope)
+            . "&force_confirm=1";
 
         return redirect($url);
     }

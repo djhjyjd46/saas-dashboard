@@ -5,6 +5,10 @@ namespace App\Livewire;
 use Livewire\Component;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Computed;
+use App\Models\Integration;
+use App\Services\Providers\YandexProvider;
+use App\Services\Integrations\Providers\AmoCrmProvider;
+use App\Services\Sync\YandexSyncThrottleService;
 use Carbon\Carbon;
 
 class DateFilter extends Component
@@ -36,6 +40,56 @@ class DateFilter extends Component
     {
         if ($property === 'startDate' || $property === 'endDate') {
             $this->dispatch('dateRangeUpdated', $this->startDate, $this->endDate);
+        }
+    }
+
+    public function syncData()
+    {
+        $tenantId = (int) (auth()->user()?->tenant_id ?? 0);
+        if ($tenantId <= 0) {
+            $this->dispatch('sync-error', message: 'Не удалось определить проект для синхронизации.');
+            return;
+        }
+
+        $throttle = app(YandexSyncThrottleService::class);
+        $isAdmin = auth()->user()?->role === 'admin';
+        if (!$isAdmin) {
+            $remaining = $throttle->manualRemainingSeconds($tenantId);
+            if ($remaining > 0) {
+                $this->dispatch('sync-cooldown', message: 'Ближайшее обновление доступно через ' . $throttle->formatRemaining($remaining));
+                return;
+            }
+        }
+
+        try {
+            $yandexIntegrations = Integration::where('type', 'yandex')
+                ->where('is_active', true)
+                ->get();
+
+            $dateFrom = Carbon::now()->subDays(90)->format('Y-m-d');
+            $dateTo   = Carbon::now()->format('Y-m-d');
+
+            foreach ($yandexIntegrations as $integration) {
+                $provider = new YandexProvider($integration);
+                $provider->syncCampaigns();
+                $provider->syncStats($dateFrom, $dateTo);
+            }
+
+            $amoIntegrations = Integration::where('type', 'amocrm')
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($amoIntegrations as $integration) {
+                (new AmoCrmProvider())
+                    ->setIntegration($integration)
+                    ->syncLeads(30);
+            }
+
+            $throttle->markManualRun($tenantId);
+            $this->dispatch('sync-success', message: 'Данные успешно обновлены.');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('DateFilter sync failed: ' . $e->getMessage());
+            $this->dispatch('sync-error', message: 'Ошибка обновления: ' . $e->getMessage());
         }
     }
 
