@@ -134,8 +134,8 @@
 
         {{-- AmoCRM Cards List --}}
         @foreach ($amoIntegrations as $index => $amoIntegration)
-            <div wire:key="amo-{{ $amoIntegration['id'] }}"
-                class="bg-[#181b21] border border-[#2a2e39] rounded-2xl p-6 transition hover:border-blue-500/30 {{ !$amoIntegration['is_connected'] ? 'opacity-90' : '' }}">
+            <div wire:key="amo-{{ $amoIntegration['id'] ?? $index }}"
+                class="bg-[#181b21] border border-[#2a2e39] rounded-2xl p-6 transition hover:border-blue-500/30 {{ !($amoIntegration['is_connected'] ?? false) ? 'opacity-90' : '' }}">
                 <div class="flex items-start justify-between mb-4">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
@@ -154,7 +154,7 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        @if ($amoIntegration['is_connected'])
+                        @if ($amoIntegration['is_connected'] ?? false)
                             <span
                                 class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/20 uppercase tracking-wider text-[10px]">Активно</span>
                         @else
@@ -163,7 +163,7 @@
                                 не заданы</span>
                         @endif
 
-                        <button wire:click="deleteAmoIntegration({{ $amoIntegration['id'] }})"
+                        <button wire:click="deleteAmoIntegration({{ $amoIntegration['id'] ?? $index }})"
                             wire:confirm="Точно удалить интеграцию?"
                             class="text-red-400 hover:bg-red-500/10 p-1.5 rounded transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,19 +211,22 @@
                             class="w-full py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold uppercase tracking-widest transition">
                             Сохранить настройки
                         </button>
-                        @if (session('amo_keys_saved_' . $amoIntegration['id']))
+                        @if (session('amo_keys_saved_' . ($amoIntegration['id'] ?? $index)))
                             <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                                 <p class="text-xs text-emerald-400 font-semibold text-center italic">
-                                    {{ session('amo_keys_saved_' . $amoIntegration['id']) }}</p>
+                                    {{ session('amo_keys_saved_' . ($amoIntegration['id'] ?? $index)) }}</p>
                             </div>
                         @endif
                     </div>
 
-                    @if ($amoIntegration['is_connected'])
+                    @if ($amoIntegration['is_connected'] ?? false)
                         <div class="p-4 bg-[#13161b] rounded-xl border border-[#2a2e39] space-y-3">
-                            <div class="flex justify-between text-xs">
+                            <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-400">Загружено лидов:</span>
-                                <span class="text-white font-bold">{{ $amoIntegration['leads_count'] }}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-white font-bold">{{ $amoIntegration['leads_count'] }}</span>
+                                    <a href="{{ route('leads') }}" class="text-[10px] text-blue-400 hover:text-blue-300 transition underline underline-offset-4 decoration-blue-500/30 font-bold uppercase tracking-wider">Открыть аналитику</a>
+                                </div>
                             </div>
                             <div class="flex justify-between text-xs">
                                 <span class="text-gray-400">Успешных сделок:</span>
@@ -241,13 +244,13 @@
                         Настройте интеграцию и нажмите кнопку ниже для OAuth-авторизации в вашем кабинете AmoCRM.
                     </p>
 
-                    <a href="{{ route('integrations.amocrm', ['id' => $amoIntegration['id']]) }}"
+                    <a href="{{ route('integrations.amocrm', ['id' => $amoIntegration['id'] ?? $index]) }}"
                         class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition shadow-lg shadow-blue-500/20">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        {{ $amoIntegration['is_connected'] ? 'Переподключить аккаунт' : 'Авторизовать AmoCRM' }}
+                        {{ ($amoIntegration['is_connected'] ?? false) ? 'Переподключить аккаунт' : 'Авторизовать AmoCRM' }}
                     </a>
                 </div>
             </div>

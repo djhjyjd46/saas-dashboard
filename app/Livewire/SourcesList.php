@@ -44,25 +44,30 @@ class SourcesList extends Component
         $isAdmin = $user?->role === 'admin';
         $userSettings = $user?->campaignSettings() ?? [];
         $allowedIds = $isAdmin ? null : ($userSettings['allowed_external_ids'] ?? []);
+        $campaignTenantId = $user->campaignTenantId();
 
         // Yandex Direct spend filtered by allowed campaigns
-        $yandexSpend = AdStat::whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds) {
-            if (!$isAdmin) {
-                $q->withoutGlobalScopes()->whereIn('external_id', $allowedIds ?? []);
-            }
-        })->whereBetween('date', [$start, $end])->sum('spend');
+        $yandexSpend = AdStat::withoutGlobalScopes()
+            ->where('tenant_id', $campaignTenantId)
+            ->whereHas('adCampaign', function ($q) use ($isAdmin, $allowedIds, $campaignTenantId) {
+                $q->withoutGlobalScopes()->where('tenant_id', $campaignTenantId);
+                if (!$isAdmin) {
+                    $q->whereIn('external_id', $allowedIds ?? []);
+                }
+            })->whereBetween('date', [$start, $end])->sum('spend');
 
         // Total CRM Leads for the tenant/period
         $totalLeads = (int) Lead::whereBetween('created_at_source', [$startDt, $endDt])->count();
 
         // Yandex source — Leads with utm_campaign from allowed list OR non-empty campaign_id
         $yandexLeads = Lead::whereBetween('created_at_source', [$startDt, $endDt])
-            ->where(function($q) use ($isAdmin, $allowedIds) {
+            ->where(function($q) use ($isAdmin, $allowedIds, $campaignTenantId) {
                 if ($isAdmin) {
                     $q->whereNotNull('meta_data->campaign_id')
                       ->orWhereNotNull('meta_data->utm_campaign');
                 } else {
                     $allowedUtms = \App\Models\AdCampaign::withoutGlobalScopes()
+                        ->where('tenant_id', $campaignTenantId)
                         ->whereIn('external_id', $allowedIds ?? [])
                         ->pluck('utm_campaign')
                         ->filter()
@@ -74,14 +79,15 @@ class SourcesList extends Component
                 }
             })->count();
 
-        $yandexSales = Deal::whereHas('lead', function ($q) use ($startDt, $endDt, $isAdmin, $allowedIds) {
+        $yandexSales = Deal::whereHas('lead', function ($q) use ($startDt, $endDt, $isAdmin, $allowedIds, $campaignTenantId) {
              $q->whereBetween('created_at_source', [$startDt, $endDt])
-               ->where(function($qq) use ($isAdmin, $allowedIds) {
+               ->where(function($qq) use ($isAdmin, $allowedIds, $campaignTenantId) {
                    if ($isAdmin) {
                        $qq->whereNotNull('meta_data->campaign_id')
                          ->orWhereNotNull('meta_data->utm_campaign');
                    } else {
                        $allowedUtms = \App\Models\AdCampaign::withoutGlobalScopes()
+                           ->where('tenant_id', $campaignTenantId)
                            ->whereIn('external_id', $allowedIds ?? [])
                            ->pluck('utm_campaign')
                            ->filter()
@@ -94,14 +100,15 @@ class SourcesList extends Component
                });
         })->count();
 
-        $yandexRevenue = Deal::whereHas('lead', function ($q) use ($startDt, $endDt, $isAdmin, $allowedIds) {
+        $yandexRevenue = Deal::whereHas('lead', function ($q) use ($startDt, $endDt, $isAdmin, $allowedIds, $campaignTenantId) {
              $q->whereBetween('created_at_source', [$startDt, $endDt])
-               ->where(function($qq) use ($isAdmin, $allowedIds) {
+               ->where(function($qq) use ($isAdmin, $allowedIds, $campaignTenantId) {
                    if ($isAdmin) {
                        $qq->whereNotNull('meta_data->campaign_id')
                          ->orWhereNotNull('meta_data->utm_campaign');
                    } else {
                        $allowedUtms = \App\Models\AdCampaign::withoutGlobalScopes()
+                           ->where('tenant_id', $campaignTenantId)
                            ->whereIn('external_id', $allowedIds ?? [])
                            ->pluck('utm_campaign')
                            ->filter()

@@ -14,19 +14,27 @@ use Carbon\Carbon;
 class DateFilter extends Component
 {
     #[Url]
-    public $startDate = '2026-02-01';
+    public $startDate;
 
     #[Url]
-    public $endDate = '2026-02-28';
+    public $endDate;
 
     public function mount()
     {
-        if (!$this->startDate || $this->startDate === '2026-02-01') {
+        if (!$this->startDate) {
             $this->startDate = Carbon::now()->subDays(30)->format('Y-m-d');
         }
-        if (!$this->endDate || $this->endDate === '2026-02-28') {
+        if (!$this->endDate) {
             $this->endDate = Carbon::now()->format('Y-m-d');
         }
+    }
+
+    #[On('dateRangeUpdated')]
+    public function updateRange($start, $end)
+    {
+        $this->startDate = $start;
+        $this->endDate = $end;
+        // No need for extra logic, render() will be called automatically
     }
 
     public function updatePeriod($start, $end)
@@ -87,6 +95,7 @@ class DateFilter extends Component
 
             $throttle->markManualRun($tenantId);
             $this->dispatch('sync-success', message: 'Данные успешно обновлены.');
+            $this->dispatch('dateRangeUpdated', $this->startDate, $this->endDate); // Trigger UI refresh
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('DateFilter sync failed: ' . $e->getMessage());
             $this->dispatch('sync-error', message: 'Ошибка обновления: ' . $e->getMessage());

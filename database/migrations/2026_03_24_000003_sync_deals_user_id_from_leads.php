@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     /**
@@ -11,16 +12,10 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        // Diagnostic: show current state
-        $leadUsers  = DB::table('leads')->select('user_id', DB::raw('COUNT(*) as cnt'))->groupBy('user_id')->get();
-        $dealUsers  = DB::table('deals')->select('user_id', DB::raw('COUNT(*) as cnt'))->groupBy('user_id')->get();
-        $allUsers   = DB::table('users')->select('id', 'name', 'email', 'role')->get();
-
-        Log::info('Migration 000003 diagnostic — BEFORE fix', [
-            'users'      => $allUsers->toArray(),
-            'lead_dist'  => $leadUsers->toArray(),
-            'deal_dist'  => $dealUsers->toArray(),
-        ]);
+        if (!Schema::hasColumn('leads', 'user_id') || !Schema::hasColumn('deals', 'user_id')) {
+            Log::warning('Migration 000003: user_id column missing in leads or deals. Skipping sync.');
+            return;
+        }
 
         // Core fix: each deal gets the user_id of its parent lead
         $affected = DB::table('deals')

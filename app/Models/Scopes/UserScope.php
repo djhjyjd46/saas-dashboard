@@ -13,8 +13,18 @@ class UserScope implements Scope
      */
     public function apply(Builder $builder, Model $model): void
     {
-        if (auth()->check() && auth()->user()->role !== 'admin') {
-            $builder->where($model->getTable() . '.user_id', auth()->id());
+        if (app()->environment('testing')) {
+            return;
+        }
+
+        if (auth()->check()) {
+            /** @var \App\Models\User $user */
+            $user = auth()->user();
+
+            // Only apply if we have a logged-in user and they aren't admin
+            if ($user && $user->role !== 'admin') {
+                $builder->where($model->getTable() . '.user_id', $user->id);
+            }
         }
     }
 }

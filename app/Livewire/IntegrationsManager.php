@@ -52,6 +52,7 @@ class IntegrationsManager extends Component
         $tenant = $this->tenantManager->getTenant();
         if ($tenant) {
             $this->amoIntegrations = Integration::where('tenant_id', $tenant->id)
+                ->where('user_id', auth()->id())
                 ->where('type', 'amocrm')
                 ->get()
                 ->map(function ($i) {
@@ -113,7 +114,11 @@ class IntegrationsManager extends Component
     public function saveAmoKeys($index)
     {
         $tenant = $this->tenantManager->getTenant();
-        $data = $this->amoIntegrations[$index];
+        $data = $this->amoIntegrations[$index] ?? null;
+
+        if (!$data || !isset($data['id'])) {
+            return;
+        }
 
         $integration = Integration::where('tenant_id', $tenant->id)->where('id', $data['id'])->first();
         if (!$integration) return;
@@ -350,6 +355,7 @@ class IntegrationsManager extends Component
 
         try {
             $integrations = Integration::where('type', 'yandex')
+                ->where('user_id', auth()->id())
                 ->where('is_active', true)
                 ->get();
 
@@ -393,7 +399,8 @@ class IntegrationsManager extends Component
         try {
             $provider = app(\App\Services\Integrations\Providers\AmoCrmProvider::class);
             $provider->setIntegration($integration);
-            $result = $provider->syncLeads(30);
+            $provider->syncLeads(30);
+            $provider->syncStatuses();
 
             $countAfter = \App\Models\Lead::where('integration_id', $integrationId)->count();
             $this->statusMessage = "AmoCRM '$integrationName': синхронизировано. Лидов в БД: $countAfter (было $countBefore).";

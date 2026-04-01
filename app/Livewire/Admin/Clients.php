@@ -166,6 +166,8 @@ class Clients extends Component
                     'settings'     => [],
                 ]);
                 $data['tenant_id'] = $tenant->id;
+                // Store reference to admin's tenant so we can resolve campaigns later
+                $data['settings'] = ['master_tenant_id' => auth()->user()->tenant_id];
             } else {
                 // Admins share the current admin's tenant
                 $data['tenant_id'] = auth()->user()->tenant_id;
@@ -183,9 +185,13 @@ class Clients extends Component
         if (!$this->editingUserId) return;
 
         $user = User::findOrFail($this->editingUserId);
-        $tenant = $user->tenant;
 
-        if (!$tenant) return;
+        // Campaigns (Yandex, etc.) are stored in the admin's tenant, not the client's.
+        // Prefer master_tenant_id from client settings, fallback to current admin's tenant.
+        $clientSettings = is_array($user->settings) ? $user->settings : [];
+        $adminTenantId = $clientSettings['master_tenant_id'] ?? auth()->user()->tenant_id;
+
+        if (!$adminTenantId) return;
 
         $settings = is_array($user->settings) ? $user->settings : [];
         $mapping = [];
@@ -201,7 +207,7 @@ class Clients extends Component
             // Keep the UI row exactly as entered, even if marker expansion finds no IDs.
             $settingsUiMapping[$name] = $idsStr;
 
-            $ids = $this->expandCampaignTokensToIds($tenant->id, $idsStr);
+            $ids = $this->expandCampaignTokensToIds($adminTenantId, $idsStr);
 
             $mapping[$name] = $ids;
 
@@ -336,6 +342,13 @@ class Clients extends Component
                         if (isset($utmToCampIds[$ref])) {
                             foreach ($utmToCampIds[$ref] as $mappedCid) {
                                 $externalIds[] = $mappedCid;
+                                // If mappedCid is like '777001_marker', try to extract '777001'
+                                if (str_contains($mappedCid, '_')) {
+                                    $prefix = explode('_', $mappedCid)[0];
+                                    if ($prefix !== '' && isset($campaignIdsSet[$prefix])) {
+                                        $externalIds[] = $prefix;
+                                    }
+                                }
                             }
                         }
                         break;

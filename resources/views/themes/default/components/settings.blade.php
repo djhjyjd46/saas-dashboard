@@ -49,6 +49,47 @@
                 </div>
             </div>
 
+            <!-- System Logs Section -->
+            <div class="pt-8 border-t border-[#2a2e39]">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h4 class="text-white font-semibold uppercase text-xs tracking-widest">Логи системы</h4>
+                        <p class="text-gray-500 text-sm mt-1">Просмотр последних событий и отладка.</p>
+                    </div>
+                    <button wire:click="loadLogs" wire:loading.attr="disabled"
+                        class="px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 rounded-lg transition duration-300 font-medium flex items-center gap-2">
+                        <svg wire:loading.class="animate-spin" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Обновить
+                    </button>
+                </div>
+                
+                @if($logs)
+                <div class="relative group">
+                    <textarea readonly class="w-full h-64 bg-[#13161b] text-gray-400 font-mono text-[10px] p-4 rounded-xl border border-[#2a2e39] focus:border-yellow-500/50 focus:ring-0 resize-none overflow-y-auto"
+                        id="logViewer">{{ $logs }}</textarea>
+                    <button onclick="copyLogs()" class="absolute top-4 right-4 p-2 bg-[#2a2e39] hover:bg-gray-700 text-gray-300 rounded-lg transition opacity-100 sm:opacity-0 group-hover:opacity-100 shadow-xl">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                    </button>
+                </div>
+                <script>
+                    function copyLogs() {
+                        const el = document.getElementById('logViewer');
+                        el.select();
+                        document.execCommand('copy');
+                        alert('Логи скопированы в буфер обмена');
+                    }
+                </script>
+                @else
+                <div class="p-8 bg-[#13161b] rounded-xl border border-[#2a2e39] text-center group cursor-pointer" wire:click="loadLogs">
+                    <p class="text-gray-500 group-hover:text-gray-300 transition">Нажмите «Обновить» или сюда для загрузки последних логов.</p>
+                </div>
+                @endif
+            </div>
+
             <!-- Danger Zone -->
             <div class="pt-8 border-t border-[#2a2e39]">
                 <h4 class="text-red-500 font-semibold mb-4 uppercase text-xs tracking-widest">Безопасность</h4>

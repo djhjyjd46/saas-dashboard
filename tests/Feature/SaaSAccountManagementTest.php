@@ -94,6 +94,7 @@ class SaaSAccountManagementTest extends TestCase
 
         $integration = Integration::create([
             'tenant_id' => $tenant->id,
+            'user_id' => $client->id,
             'type' => 'amocrm',
             'is_active' => false,
             'credentials' => ['name' => 'Amo 1']
@@ -177,17 +178,17 @@ class SaaSAccountManagementTest extends TestCase
         $clientUser = User::factory()->create(['role' => 'client', 'tenant_id' => $clientTenant->id]);
 
         AdCampaign::factory()->create([
-            'tenant_id' => $clientTenant->id,
+            'tenant_id' => $admin->tenant_id,
             'external_id' => 'EXT-VUZ-1',
             'name' => 'Поиск _glavnaya_vuz Минск',
         ]);
         AdCampaign::factory()->create([
-            'tenant_id' => $clientTenant->id,
+            'tenant_id' => $admin->tenant_id,
             'external_id' => 'EXT-VUZ-2',
             'name' => 'РСЯ _GLAVNAYA_VUZ Брест',
         ]);
         AdCampaign::factory()->create([
-            'tenant_id' => $clientTenant->id,
+            'tenant_id' => $admin->tenant_id,
             'external_id' => 'EXT-OTHER',
             'name' => 'Обычная кампания без маркера',
         ]);
@@ -254,7 +255,7 @@ class SaaSAccountManagementTest extends TestCase
         $clientUser = User::factory()->create(['role' => 'client', 'tenant_id' => $clientTenant->id]);
 
         AdCampaign::factory()->create([
-            'tenant_id' => $clientTenant->id,
+            'tenant_id' => $admin->tenant_id,
             'external_id' => 'EXT-VUZ-PLAIN',
             'name' => 'Поиск glavnaya vuz Минск',
         ]);
@@ -283,13 +284,13 @@ class SaaSAccountManagementTest extends TestCase
         $clientUser = User::factory()->create(['role' => 'client', 'tenant_id' => $clientTenant->id]);
 
         AdCampaign::factory()->create([
-            'tenant_id' => $clientTenant->id,
+            'tenant_id' => $admin->tenant_id,
             'external_id' => '777001',
             'name' => 'МК | Бренд запросы | 25-55 | рф_новая метка',
         ]);
 
         Lead::factory()->create([
-            'tenant_id' => $clientTenant->id,
+            'tenant_id' => $admin->tenant_id,
             'meta_data' => [
                 'utm_campaign' => '777001_glavnaya_vuz',
                 'campaign_id' => '777001_glavnaya_vuz',

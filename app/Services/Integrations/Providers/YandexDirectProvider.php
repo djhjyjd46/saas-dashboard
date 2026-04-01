@@ -48,6 +48,7 @@ class YandexDirectProvider
                     'external_id' => (string)$camp['Id']
                 ],
                 [
+                    'user_id' => $this->integration->user_id,
                     'name' => $camp['Name'],
                     'source' => 'yandex'
                 ]
@@ -117,6 +118,7 @@ class YandexDirectProvider
                             'date' => $cols[0]
                         ],
                         [
+                            'user_id' => $this->integration->user_id,
                             'impressions' => (int)$cols[2],
                             'clicks' => (int)$cols[3],
                             'spend' => (float)$cols[4],

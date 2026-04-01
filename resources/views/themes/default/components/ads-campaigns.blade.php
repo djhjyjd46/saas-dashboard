@@ -21,8 +21,7 @@
                             @if ($st === 'serving')
                                 <span
                                     class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-green-500/10 text-green-400">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Показы
-                                    идут
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Показы идут
                                 </span>
                             @elseif($st === 'active')
                                 <span
@@ -115,7 +114,16 @@
                                 <div class="text-xl font-bold text-pink-400">
                                     {{ number_format($cs['ctr'], 2, ',', '.') }}%</div>
                             </div>
-
+                            <div class="p-4 rounded-xl bg-[#1a1d24] border border-[#2a2e39]">
+                                <div class="text-xs text-gray-500 mb-1">Лиды</div>
+                                <div class="text-xl font-bold text-green-400">
+                                    {{ number_format($cs['conversions'], 0, ',', ' ') }}</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-[#1a1d24] border border-[#2a2e39]">
+                                <div class="text-xs text-gray-500 mb-1">CPL</div>
+                                <div class="text-xl font-bold text-indigo-400">
+                                    ₽{{ number_format($cs['cpl'], 0, ',', ' ') }}</div>
+                            </div>
                             <div class="p-4 rounded-xl bg-[#1a1d24] border border-[#2a2e39]">
                                 <div class="text-xs text-gray-500 mb-1">Дней</div>
                                 <div class="text-xl font-bold text-gray-300">{{ count($campaignDailyStats) }}</div>
@@ -135,9 +143,8 @@
                                             <th class="p-3 text-left font-semibold">Дата</th>
                                             <th class="p-3 text-right font-semibold">Расход</th>
                                             <th class="p-3 text-right font-semibold">Клики</th>
-                                            <th class="p-3 text-right font-semibold">Показы</th>
-                                            <th class="p-3 text-right font-semibold">CTR</th>
-
+                                            <th class="p-3 text-right font-semibold">Лиды</th>
+                                            <th class="p-3 text-right font-semibold">CPL</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-[#2a2e39]">
@@ -149,12 +156,11 @@
                                                     ₽{{ number_format($day->spend, 0, ',', ' ') }}</td>
                                                 <td class="p-3 text-right text-blue-400">
                                                     {{ number_format($day->clicks, 0, ',', ' ') }}</td>
-                                                <td class="p-3 text-right text-gray-500">
-                                                    {{ number_format($day->impressions, 0, ',', ' ') }}</td>
-                                                <td class="p-3 text-right text-pink-400 text-xs">
-                                                    {{ $day->impressions > 0 ? number_format(($day->clicks / $day->impressions) * 100, 2, ',', '.') : '0,00' }}%
+                                                <td class="p-3 text-right text-green-400">
+                                                    {{ number_format($day->conversions, 0, ',', ' ') }}</td>
+                                                <td class="p-3 text-right text-indigo-400 text-xs">
+                                                    ₽{{ $day->conversions > 0 ? number_format($day->spend / $day->conversions, 0, ',', ' ') : '—' }}
                                                 </td>
-
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -171,7 +177,7 @@
     <div class="flex items-center justify-between mb-6 gap-4">
         <div>
             <h2 class="text-lg font-bold text-white">Рекламные кампании</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Яндекс.Директ · {{ $totalCampaignsCount }} кампаний за период</p>
+            <p class="text-xs text-gray-500 mt-0.5">Яндекс.Директ · {{ count($campaigns) }} кампаний за период</p>
         </div>
         <div class="relative">
             <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" fill="none"
@@ -186,7 +192,7 @@
     </div>
 
     {{-- Totals mini-cards --}}
-    <div class="grid grid-cols-5 gap-3 mb-6">
+    <div class="grid grid-cols-6 gap-3 mb-6">
         @php
             $miniStats = [
                 [
@@ -200,9 +206,9 @@
                     'color' => 'text-blue-400',
                 ],
                 [
-                    'label' => 'Показы',
-                    'value' => number_format($totals['impressions'], 0, ',', ' '),
-                    'color' => 'text-gray-300',
+                    'label' => 'CTR',
+                    'value' => number_format($totals['ctr'], 2, ',', '.') . '%',
+                    'color' => 'text-pink-400',
                 ],
                 [
                     'label' => 'CPC',
@@ -210,11 +216,15 @@
                     'color' => 'text-purple-400',
                 ],
                 [
-                    'label' => 'CTR',
-                    'value' => number_format($totals['ctr'], 2, ',', '.') . '%',
-                    'color' => 'text-pink-400',
+                    'label' => 'Лиды',
+                    'value' => number_format($totals['conversions'], 0, ',', ' '),
+                    'color' => 'text-green-400',
                 ],
-
+                [
+                    'label' => 'CPL',
+                    'value' => '₽' . number_format($totals['cpl'], 0, ',', ' '),
+                    'color' => 'text-indigo-400',
+                ],
             ];
         @endphp
         @foreach ($miniStats as $ms)
@@ -249,172 +259,159 @@
                             <span class="ml-1">{{ $sortDir === 'desc' ? '↓' : '↑' }}</span>
                         @endif
                     </th>
-                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-gray-300 transition select-none"
-                        wire:click="sort('impressions')">
-                        Показы @if ($sortBy === 'impressions')
+                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-green-400 transition select-none"
+                        wire:click="sort('leads')">
+                        Лд @if ($sortBy === 'leads')
                             <span class="ml-1">{{ $sortDir === 'desc' ? '↓' : '↑' }}</span>
                         @endif
                     </th>
-                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-purple-400 transition select-none"
-                        wire:click="sort('cpc')">
-                        CPC @if ($sortBy === 'cpc')
+                    <th class="p-4 font-semibold text-right text-indigo-400">
+                        CPL
+                    </th>
+                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-blue-300 transition select-none"
+                        wire:click="sort('qual_leads')">
+                        Кв @if ($sortBy === 'qual_leads')
                             <span class="ml-1">{{ $sortDir === 'desc' ? '↓' : '↑' }}</span>
                         @endif
                     </th>
-                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-pink-400 transition select-none"
-                        wire:click="sort('ctr')">
-                        CTR @if ($sortBy === 'ctr')
+                    <th class="p-4 font-semibold text-right text-blue-400">
+                        CRq
+                    </th>
+                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-teal-400 transition select-none"
+                        wire:click="sort('won_deals')">
+                        Пр @if ($sortBy === 'won_deals')
                             <span class="ml-1">{{ $sortDir === 'desc' ? '↓' : '↑' }}</span>
                         @endif
                     </th>
-
+                    <th class="p-4 font-semibold text-right text-teal-400">
+                        CRw
+                    </th>
+                    <th class="p-4 font-semibold text-right cursor-pointer hover:text-red-400 transition select-none"
+                        wire:click="sort('lost_leads')">
+                        ЗиН
+                    </th>
                     <th class="p-4 font-semibold text-center cursor-pointer hover:text-white transition select-none"
                         wire:click="sort('status')">
-                        Статус @if ($sortBy === 'status')
-                            <span class="ml-1">{{ $sortDir === 'desc' ? '↓' : '↑' }}</span>
-                        @endif
+                        Статус
                     </th>
                 </tr>
             </thead>
-            <tbody>
-                @foreach ($groups as $group)
-                    @php
-                        $isExpanded = in_array($group['id'], $expandedCategories) || !$hasMapping;
-                        $gt = $group['totals'];
-                    @endphp
+            @php
+                $isUserAdmin = auth()->user()?->isAdmin() ?? false;
+                $catLookup = [];
 
-                    {{-- Group Header Row --}}
-                    @if ($hasMapping)
-                        <tr class="bg-[#111317] border-b border-[#2a2e39] cursor-pointer hover:bg-white/[0.02] transition"
-                            wire:click="toggleCategory('{{ $group['id'] }}')">
-                            <td class="p-4 text-center">
-                                <span
-                                    class="text-xs text-gray-500 transition-transform duration-200 inline-block {{ $isExpanded ? 'rotate-90' : '' }}">▶</span>
-                            </td>
-                            <td class="p-4 font-bold text-yellow-500 uppercase tracking-wider text-[11px]">
-                                {{ $group['name'] }}
-                                <span
-                                    class="ml-2 text-[10px] text-gray-600 font-normal">({{ count($group['campaigns']) }})</span>
-                            </td>
-                            <td class="p-4 text-right font-bold text-yellow-500/80">
-                                ₽{{ number_format($gt['spend'], 0, ',', ' ') }}</td>
-                            <td class="p-4 text-right text-blue-400/80">
-                                {{ number_format($gt['clicks'], 0, ',', ' ') }}</td>
-                            <td class="p-4 text-right text-gray-500/80">
-                                {{ number_format($gt['impressions'], 0, ',', ' ') }}</td>
-                            <td class="p-4 text-right text-purple-400/80">
-                                ₽{{ number_format($gt['cpc'], 0, ',', ' ') }}</td>
-                            <td class="p-4 text-right text-pink-400/80">{{ number_format($gt['ctr'], 2, ',', '.') }}%
-                            </td>
+                if ($isUserAdmin) {
+                    $clients = \App\Models\User::where('role', 'client')->get();
+                    foreach ($clients as $client) {
+                        $mapping = $client->campaignSettings()['category_mapping'] ?? [];
+                        foreach ($mapping as $catName => $ids) {
+                            foreach ((array)$ids as $id) {
+                                $catLookup[(string)$id] = $client->name . ' — ' . $catName;
+                            }
+                        }
+                    }
+                    $adminMapping = auth()->user()?->campaignSettings()['category_mapping'] ?? [];
+                    foreach ($adminMapping as $catName => $ids) {
+                        foreach ((array)$ids as $id) {
+                            $catLookup[(string)$id] = $catName;
+                        }
+                    }
+                } else {
+                    $userSettings = auth()->user()?->campaignSettings() ?? [];
+                    $mapping = $userSettings['category_mapping'] ?? [];
+                    foreach ($mapping as $catName => $ids) {
+                        foreach ((array)$ids as $id) {
+                            $catLookup[(string)$id] = $catName;
+                        }
+                    }
+                }
 
-                            <td class="p-4"></td>
-                        </tr>
-                    @endif
-
-                    @if ($isExpanded)
-                        @foreach ($group['campaigns'] as $i => $camp)
-                            @php
-                                $st = $camp->normalized_status;
-                                $isStale = is_null($camp->last_synced_at);
-                                if ($isStale) {
-                                    $badge = ['bg-gray-700/50 text-gray-600', 'bg-gray-700', 'Устарело'];
-                                } elseif ($st === 'serving') {
-                                    $badge = ['bg-green-500/10 text-green-400', 'bg-green-400 animate-pulse', 'Показы'];
-                                } elseif ($st === 'active') {
-                                    $badge = ['bg-teal-500/10 text-teal-400', 'bg-teal-500', 'Включена'];
-                                } elseif ($st === 'suspended' || $st === 'paused') {
-                                    $badge = ['bg-yellow-500/10 text-yellow-500', 'bg-yellow-500', 'Пауза'];
-                                } elseif ($st === 'archived') {
-                                    $badge = ['bg-gray-500/10 text-gray-600', 'bg-gray-700', 'Архив'];
-                                } elseif ($st === 'ended') {
-                                    $badge = ['bg-gray-500/10 text-gray-400', 'bg-gray-500', 'Завершена'];
-                                } elseif ($st === 'stopped') {
-                                    $badge = ['bg-red-500/10 text-red-400', 'bg-red-500', 'Остановлена'];
-                                } elseif ($st === 'moderation') {
-                                    $badge = ['bg-blue-500/10 text-blue-400', 'bg-blue-400', 'Модерация'];
-                                } elseif ($st === 'rejected') {
-                                    $badge = ['bg-red-500/10 text-red-400', 'bg-red-600', 'Отклонена'];
-                                } elseif ($st === 'draft') {
-                                    $badge = ['bg-blue-500/10 text-blue-400', 'bg-blue-500', 'Черновик'];
-                                } else {
-                                    $badge = ['bg-gray-500/10 text-gray-500', 'bg-gray-600', $st ?: '—'];
-                                }
-                            @endphp
-                            <tr class="border-b border-[#2a2e39] hover:bg-yellow-500/[0.03] transition cursor-pointer group"
-                                wire:click="openCampaign({{ $camp->id }})">
-                                <td class="p-4 text-center text-gray-600 text-xs font-mono">
-                                    {{ $hasMapping ? '↳' : $i + 1 }}
-                                </td>
-                                <td class="p-4">
-                                    <div
-                                        class="text-gray-200 font-medium max-w-sm leading-snug group-hover:text-white transition">
-                                        {{ $camp->name }}
-                                    </div>
-                                    @if ($camp->entity)
-                                        <span
-                                            class="inline-flex items-center gap-1 mt-1 text-xs px-2 py-0.5 rounded-full"
-                                            style="background-color:{{ $camp->entity->color ?? '#374151' }}20; color:{{ $camp->entity->color ?? '#9ca3af' }}">
-                                            {{ $camp->entity->name }}
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="p-4 text-right">
-                                    <span
-                                        class="text-yellow-400 font-bold">₽{{ number_format($camp->period_spend, 0, ',', ' ') }}</span>
-                                </td>
-                                <td class="p-4 text-right text-blue-400 font-medium">
-                                    {{ number_format($camp->period_clicks, 0, ',', ' ') }}
-                                </td>
-                                <td class="p-4 text-right text-gray-400">
-                                    {{ number_format($camp->period_impressions, 0, ',', ' ') }}
-                                </td>
-                                <td class="p-4 text-right text-purple-400">
-                                    ₽{{ number_format($camp->period_cpc, 0, ',', ' ') }}
-                                </td>
-                                <td class="p-4 text-right text-pink-400">
-                                    {{ number_format($camp->period_ctr, 2, ',', '.') }}%
-                                </td>
-
-                                <td class="p-4 text-center">
-                                    <span
-                                        class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium {{ $badge[0] }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $badge[1] }}"></span>
-                                        {{ $badge[2] }}
-                                    </span>
-                                </td>
-                            </tr>
-                        @endforeach
-                    @endif
-                @endforeach
-
-                @if (empty($groups))
-                    <tr>
-                        <td colspan="8" class="p-12 text-center text-gray-600">
-                            <div class="text-4xl mb-3">📊</div>
-                            <div class="text-sm">Нет данных за выбранный период</div>
+                $groupedCampaigns = collect($campaigns)->groupBy(function($c) use ($catLookup) {
+                    return $catLookup[(string)$c->external_id] ?? 'Нераспределено';
+                });
+                if ($groupedCampaigns->has('Нераспределено')) {
+                    $unassigned = $groupedCampaigns->pull('Нераспределено');
+                    $groupedCampaigns->put('Нераспределено', $unassigned);
+                }
+                $globalIndex = 0;
+            @endphp
+            @forelse($groupedCampaigns as $categoryName => $group)
+                <tbody x-data="{ expanded: true }">
+                    <tr class="border-b hover:bg-white/[0.02] transition cursor-pointer" style="border-color:#2a2e39; background-color: rgba(0,0,0,0.2);" @click="expanded = !expanded">
+                        <td colspan="12" class="p-3 text-sm font-semibold text-gray-300">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" :class="expanded ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                {{ $categoryName }} <span class="text-xs text-gray-600 font-normal ml-1">({{ count($group) }})</span>
+                            </div>
                         </td>
                     </tr>
-                @endif
-            </tbody>
-            @if (!empty($groups))
+                    @foreach($group as $camp)
+                        @php
+                            $i = $globalIndex++;
+                            $st = $camp->normalized_status;
+                            $isStale = is_null($camp->last_synced_at);
+                            if ($isStale) { $badge = ['bg-gray-700/50 text-gray-600', 'bg-gray-700', 'Устарело']; }
+                            elseif ($st === 'serving') { $badge = ['bg-green-500/10 text-green-400', 'bg-green-400 animate-pulse', 'Показы']; }
+                            elseif ($st === 'active') { $badge = ['bg-teal-500/10 text-teal-400', 'bg-teal-500', 'Вкл']; }
+                            elseif ($st === 'suspended' || $st === 'paused') { $badge = ['bg-yellow-500/10 text-yellow-500', 'bg-yellow-500', 'Пауза']; }
+                            else { $badge = ['bg-gray-500/10 text-gray-500', 'bg-gray-600', $st ?: '—']; }
+                        @endphp
+                        <tr x-show="expanded" class="border-b hover:bg-yellow-500/[0.03] transition cursor-pointer group"
+                            style="border-color:#2a2e39;" wire:click="openCampaign({{ $camp->id }})">
+                            <td class="p-4 text-center text-gray-600 text-xs font-mono">{{ $i + 1 }}</td>
+                            <td class="p-4">
+                                <div class="text-gray-200 font-medium max-w-sm leading-snug group-hover:text-white transition">
+                                    {{ $camp->name }}</div>
+                            </td>
+                            <td class="p-4 text-right"><span class="text-yellow-400 font-bold">₽{{ number_format($camp->period_spend, 0, ',', ' ') }}</span></td>
+                            <td class="p-4 text-right text-blue-400 font-medium">{{ number_format($camp->period_clicks, 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-pink-400">{{ number_format($camp->period_ctr, 1, ',', '.') }}%</td>
+                            
+                            <td class="p-4 text-right text-green-400 font-bold">{{ number_format($camp->period_leads, 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-indigo-400 text-[10px]">₽{{ number_format($camp->period_cpl, 0, ',', ' ') }}</td>
+                            
+                            <td class="p-4 text-right text-blue-300">{{ number_format($camp->period_qual_leads, 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-blue-400 text-[10px]">{{ number_format($camp->period_cr_qual, 1) }}%</td>
+                            
+                            <td class="p-4 text-right text-teal-400 font-bold">{{ number_format($camp->period_won_deals, 0, ',', ' ') }}</td>
+                            <td class="p-4 text-right text-teal-500 text-[10px]">{{ number_format($camp->period_cr_won, 1) }}%</td>
+                            
+                            <td class="p-4 text-right text-red-400">{{ number_format($camp->period_lost_leads, 0, ',', ' ') }}</td>
+                            
+                            <td class="p-4 text-center">
+                                <span class="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-medium {{ $badge[0] }}">
+                                    {{ $badge[2] }}
+                                </span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            @empty
+                <tbody>
+                    <tr><td colspan="12" class="p-12 text-center text-gray-600"><div class="text-sm">Нет данных</div></td></tr>
+                </tbody>
+            @endforelse
+            @if (count($campaigns) > 0)
                 <tfoot>
-                    <tr class="border-t text-sm font-bold" style="border-color:#2a2e39; background-color:#111317;">
+                    <tr class="border-t text-[11px] font-bold" style="border-color:#2a2e39; background-color:#111317;">
                         <td class="p-4" colspan="2">Итого</td>
-                        <td class="p-4 text-right text-yellow-400">₽{{ number_format($totals['spend'], 0, ',', ' ') }}
-                        </td>
-                        <td class="p-4 text-right text-blue-400">{{ number_format($totals['clicks'], 0, ',', ' ') }}
-                        </td>
-                        <td class="p-4 text-right text-gray-400">
-                            {{ number_format($totals['impressions'], 0, ',', ' ') }}</td>
-                        <td class="p-4 text-right text-purple-400">₽{{ number_format($totals['cpc'], 0, ',', ' ') }}
-                        </td>
-                        <td class="p-4 text-right text-pink-400">{{ number_format($totals['ctr'], 2, ',', '.') }}%
-                        </td>
-
+                        <td class="p-4 text-right text-yellow-400">₽{{ number_format($totals['spend'], 0, ',', ' ') }}</td>
+                        <td class="p-4 text-right text-blue-400">{{ number_format($totals['clicks'], 0, ',', ' ') }}</td>
+                        <td class="p-4 text-right text-pink-400">{{ number_format($totals['ctr'], 1, ',', '.') }}%</td>
+                        <td class="p-4 text-right text-green-400">{{ number_format($totals['leads'], 0, ',', ' ') }}</td>
+                        <td class="p-4 text-right text-indigo-400">₽{{ number_format($totals['cpl'], 0, ',', ' ') }}</td>
+                        <td class="p-4 text-right text-blue-300">{{ number_format($totals['qual_leads'], 0, ',', ' ') }}</td>
+                        <td class="p-4 text-right text-blue-400">{{ number_format($totals['leads'] > 0 ? ($totals['qual_leads']/$totals['leads'])*100 : 0, 1) }}%</td>
+                        <td class="p-4 text-right text-teal-400">{{ number_format($totals['won_deals'], 0, ',', ' ') }}</td>
+                        <td class="p-4 text-right text-teal-500">{{ number_format($totals['leads'] > 0 ? ($totals['won_deals']/$totals['leads'])*100 : 0, 1) }}%</td>
+                        <td class="p-4 text-right text-red-500">{{ number_format($totals['lost_leads'], 0, ',', ' ') }}</td>
                         <td class="p-4"></td>
                     </tr>
                 </tfoot>
             @endif
+        </table>
+    </div>
+</div>
         </table>
     </div>
 </div>

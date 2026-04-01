@@ -7,37 +7,38 @@ use App\Models\Scopes\UserScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Integration extends Model
+class LeadStatusHistory extends Model
 {
     use HasFactory;
+
     protected static function booted()
     {
         static::addGlobalScope(new TenantScope);
         static::addGlobalScope(new UserScope);
     }
+
     protected $fillable = [
         'tenant_id',
         'user_id',
-        'type',
-        'credentials',
-        'is_active',
+        'lead_id',
+        'status_id',
+        'pipeline_id',
+        'changed_at',
+        'meta_data'
     ];
 
     protected $casts = [
-        'credentials' => 'array',
-        'is_active' => 'boolean',
+        'changed_at' => 'datetime',
+        'meta_data' => 'array',
     ];
 
-    public function tenant()
+    public function lead()
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->belongsTo(Lead::class);
     }
 
-    public function getProvider()
+    public function crmStatus()
     {
-        if ($this->type === 'amocrm') {
-            return (new \App\Services\Integrations\Providers\AmoCrmProvider())->setIntegration($this);
-        }
-        return null;
+        return $this->belongsTo(CrmStatus::class, 'status_id', 'external_id');
     }
 }

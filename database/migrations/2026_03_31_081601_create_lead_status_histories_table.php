@@ -11,14 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ad_campaigns', function (Blueprint $table) {
+        Schema::create('lead_status_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('integration_id')->nullable()->constrained()->onDelete('cascade');
-            $table->string('external_id')->index();
-            $table->string('name');
-            $table->string('source')->default('yandex');
+            $table->foreignId('lead_id')->constrained()->onDelete('cascade');
+            $table->string('status_id')->index();
+            $table->string('pipeline_id')->nullable();
+            $table->timestamp('changed_at')->index();
+            $table->json('meta_data')->nullable();
             $table->timestamps();
         });
     }
@@ -28,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ad_campaigns');
+        Schema::dropIfExists('lead_status_histories');
     }
 };

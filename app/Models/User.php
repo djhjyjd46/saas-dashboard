@@ -81,4 +81,14 @@ class User extends Authenticatable
             'category_mapping_ui' => $userSettings['category_mapping_ui'] ?? ($tenantSettings['category_mapping_ui'] ?? []),
         ];
     }
+
+    /**
+     * Returns the tenant_id where ad campaigns (Yandex, etc.) are stored.
+     * Clients store campaigns in the admin's tenant; admins use their own.
+     */
+    public function campaignTenantId(): ?int
+    {
+        $settings = is_array($this->settings) ? $this->settings : [];
+        return $settings['master_tenant_id'] ?? $this->tenant_id;
+    }
 }

@@ -292,7 +292,7 @@ class YandexProvider
         // Fetch per-goal conversions from Metrica Stat API if configured
         $metrikaConv = [];
         if ($counterId && !empty($goalIds)) {
-            $metrikaConv = $this->fetchMetricaConversions($dateFrom, $dateTo, $counterId, $goalIds[0]);
+            $metrikaConv = $this->fetchMetricaConversions($dateFrom, $dateTo, $counterId, $goalIds);
             Log::info('Metrica conversions fetched', [
                 'tenant_id'  => $this->integration->tenant_id,
                 'counter_id' => $counterId,
@@ -370,17 +370,24 @@ class YandexProvider
     }
 
     /**
-     * Fetch per-goal conversions from Yandex Metrica Stat API.
-     * Dimensions: date + Direct campaignID. Metric: specific goal reaches.
-     * Returns ['campaignId|YYYY-MM-DD' => int_conversions].
+     * Fetch per-goal conversions from Yandex Metrika Stat API.
+     * Dimensions: date + Direct campaignID + Attributed UTMs. Metric: goal reaches.
+     * Returns ['campaignId|YYYY-MM-DD' => ['conversions' => X, 'utm_campaign' => Y, ...]].
      */
     private function fetchMetricaConversions(
         string $dateFrom,
         string $dateTo,
         int    $counterId,
-        int    $goalId
+        array  $goalIds
     ): array {
-        $metric = "ym:s:goal{$goalId}reaches";
+        if (empty($goalIds)) return [];
+
+        $metrics = [];
+        foreach ($goalIds as $gid) {
+            $metrics[] = "ym:s:goal{$gid}reaches";
+        }
+        $metricsStr = implode(',', $metrics);
+        
         $result = [];
         $offset = 1;
         $limit  = 10000;
@@ -390,8 +397,8 @@ class YandexProvider
                 ->withToken($this->accessToken())
                 ->get('https://api-metrika.yandex.net/stat/v1/data', [
                     'ids'        => $counterId,
-                    'dimensions' => 'ym:s:date,ym:s:directCampaignID,ym:s:utmCampaign',
-                    'metrics'    => $metric,
+                    'dimensions' => 'ym:s:date,ym:s:directCampaignID,ym:s:lastsignUTMCampaign',
+                    'metrics'    => $metricsStr,
                     'date1'      => $dateFrom,
                     'date2'      => $dateTo,
                     'accuracy'   => 'full',
@@ -412,14 +419,18 @@ class YandexProvider
                 $date       = $row['dimensions'][0]['name'] ?? null;
                 $campaignId = $row['dimensions'][1]['id']   ?? null;
                 $utmParam   = $row['dimensions'][2]['name'] ?? null;
-                $conv       = (int) round($row['metrics'][0] ?? 0);
+                
+                $totalConv = 0;
+                foreach ($row['metrics'] as $mVal) {
+                    $totalConv += (int) round($mVal ?? 0);
+                }
 
                 if ($date && $campaignId) {
                     $key = $campaignId . '|' . $date;
                     if (!isset($result[$key])) {
                         $result[$key] = ['conversions' => 0, 'utm_campaign' => null];
                     }
-                    $result[$key]['conversions'] += $conv;
+                    $result[$key]['conversions'] += $totalConv;
                     if ($utmParam && $utmParam !== '' && $utmParam !== 'none' && $utmParam !== '(none)') {
                         $result[$key]['utm_campaign'] = $utmParam;
                     }

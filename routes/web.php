@@ -23,6 +23,8 @@ Route::middleware(['auth', \App\Http\Middleware\TenantMiddleware::class])->group
     Route::get('/integrations/amocrm', [\App\Http\Controllers\AmoCrmAuthController::class, 'redirect'])->name('integrations.amocrm');
     Route::get('/dashboard', \App\Livewire\Dashboard::class)->name('dashboard');
     Route::get('/campaigns', \App\Livewire\AdsCampaigns::class)->name('campaigns');
+    Route::get('/leads', \App\Livewire\Leads\LeadsList::class)->name('leads');
+    Route::get('/analytics/directions', \App\Livewire\Analytics\DirectionsAnalytics::class)->name('analytics.directions');
     Route::get('/integrations', \App\Livewire\IntegrationsManager::class)->name('integrations');
     Route::get('/settings', \App\Livewire\Settings::class)->name('settings');
 

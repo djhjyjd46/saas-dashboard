@@ -79,7 +79,8 @@ class AmoCrmProvider implements CrmProviderInterface
             foreach ($leads as $amoLead) {
                 $customFields = $amoLead['custom_fields_values'] ?? [];
                 $utmData = $this->parseUtm($customFields);
-                $metaData = array_merge($amoLead, $utmData);
+                $phone = $this->parsePhone($customFields);
+                $metaData = array_merge($amoLead, $utmData, ['phone_parsed' => $phone]);
 
                 $lead = Lead::withoutGlobalScopes()->updateOrCreate(
                     [
@@ -89,6 +90,8 @@ class AmoCrmProvider implements CrmProviderInterface
                         'external_id'    => $amoLead['id'],
                     ],
                     [
+                        'lead_name'         => $amoLead['name'] ?? null,
+                        'phone'             => $phone,
                         'status'            => $amoLead['status_id'],
                         'created_at_source' => Carbon::createFromTimestamp($amoLead['created_at']),
                         'meta_data'         => $metaData,
@@ -117,6 +120,154 @@ class AmoCrmProvider implements CrmProviderInterface
             }
             $page++;
         }
+
+        $this->syncQualificationDates($days);
+    }
+
+    public function syncLeadHistory(Lead $lead): void
+    {
+        $credentials = $this->integration->credentials;
+        $domain = $credentials['domain'] ?? ($credentials['base_domain'] ?? config('services.amocrm.base_domain'));
+        $baseUrl = "https://{$domain}/api/v4";
+        $token = $credentials['access_token'];
+
+        $response = Http::withToken($token)->get("$baseUrl/events", [
+            'filter[type]' => 'lead_status_changed',
+            'filter[entity_id]' => (int)$lead->external_id,
+        ]);
+
+        if ($response->failed()) {
+            return;
+        }
+
+        $events = $response->json()['_embedded']['events'] ?? [];
+        foreach ($events as $event) {
+            $newStatus = $event['value_after'][0]['lead_status']['id'] ?? null;
+            if (!$newStatus) continue;
+
+            \App\Models\LeadStatusHistory::firstOrCreate(
+                [
+                    'user_id' => $lead->user_id,
+                    'lead_id' => $lead->id,
+                    'status_id' => (string) $newStatus,
+                    'changed_at' => \Illuminate\Support\Carbon::createFromTimestamp($event['created_at']),
+                ],
+                [
+                    'tenant_id' => $lead->tenant_id,
+                    'pipeline_id' => (string) ($event['value_after'][0]['lead_status']['pipeline_id'] ?? ''),
+                ]
+            );
+        }
+    }
+
+    public function syncQualificationDates(int $days = 7): void
+    {
+        $credentials = $this->integration->credentials;
+        $domain = $credentials['domain'] ?? ($credentials['base_domain'] ?? config('services.amocrm.base_domain'));
+        $baseUrl = "https://{$domain}/api/v4";
+        $token = $credentials['access_token'];
+
+        $since = now()->subDays($days)->timestamp;
+        
+        // ID статуса "Квалификация пройдена" в основной воронке
+        $qualStatusId = 73458306; 
+
+        $response = Http::withToken($token)->get("$baseUrl/events", [
+            'filter[type]' => 'lead_status_changed',
+            'filter[created_at][from]' => $since,
+            'limit' => 250,
+        ]);
+
+        if ($response->failed()) {
+            return;
+        }
+
+        $events = $response->json()['_embedded']['events'] ?? [];
+        foreach ($events as $event) {
+            $newStatus = $event['value_after'][0]['lead_status']['id'] ?? null;
+            $leadId = $event['entity_id'];
+            
+            // Find our lead
+            $lead = Lead::withoutGlobalScopes()
+                ->where('integration_id', $this->integration->id)
+                ->where('external_id', (string) $leadId)
+                ->first();
+
+            if ($lead) {
+                // 1. Update qualification date if it matches specific status
+                if ($newStatus == $qualStatusId && !$lead->qualified_at) {
+                    $lead->update(['qualified_at' => Carbon::createFromTimestamp($event['created_at'])]);
+                }
+
+                // 2. Track history transition
+                \App\Models\LeadStatusHistory::firstOrCreate(
+                    [
+                        'lead_id' => $lead->id,
+                        'status_id' => (string) $newStatus,
+                        'changed_at' => Carbon::createFromTimestamp($event['created_at']),
+                    ],
+                    [
+                        'tenant_id' => $lead->tenant_id,
+                        'pipeline_id' => (string) ($event['value_after'][0]['lead_status']['pipeline_id'] ?? ''),
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Sync AmoCRM pipeline statuses (names and colors)
+     */
+    public function syncStatuses(): void
+    {
+        $credentials = $this->integration->credentials;
+        $domain = $credentials['domain'] ?? ($credentials['base_domain'] ?? config('services.amocrm.base_domain'));
+        $baseUrl = "https://{$domain}/api/v4";
+        $token = $credentials['access_token'];
+
+        $response = Http::withToken($token)->get("$baseUrl/leads/pipelines");
+        
+        // If 401, try to refresh once
+        if ($response->status() === 401) {
+             $newToken = $this->refreshToken($domain, $credentials);
+             if ($newToken) {
+                 $response = Http::withToken($newToken)->get("$baseUrl/leads/pipelines");
+             }
+        }
+
+        if ($response->failed()) {
+            return;
+        }
+
+        $pipelines = $response->json()['_embedded']['pipelines'] ?? [];
+        foreach ($pipelines as $pipe) {
+            $pipeId = (string) $pipe['id'];
+            $statuses = $pipe['_embedded']['statuses'] ?? [];
+            foreach ($statuses as $s) {
+                \App\Models\CrmStatus::updateOrCreate([
+                    'external_id' => (string) $s['id'],
+                    'tenant_id' => $this->integration->tenant_id,
+                    'pipeline_id' => $pipeId,
+                ], [
+                    'name' => $s['name'],
+                    'color' => $s['color'] ?? null,
+                ]);
+            }
+        }
+    }
+
+    private function parsePhone(array $fields): ?string
+    {
+        foreach ($fields as $field) {
+            $code = strtoupper($field['field_code'] ?? '');
+            $name = $field['field_name'] ?? '';
+            
+            // Try standard code, then keywords in English and Russian
+            if ($code === 'PHONE' || stripos($name, 'phone') !== false || stripos($name, 'телефон') !== false) {
+                return $field['values'][0]['value'] ?? null;
+            }
+        }
+        return null;
     }
 
     /**
@@ -193,19 +344,49 @@ class AmoCrmProvider implements CrmProviderInterface
     {
         $utm = [];
         foreach ($fields as $field) {
-            $name  = strtolower($field['field_name'] ?? '');
+            $name  = mb_strtolower($field['field_name'] ?? '');
             $code  = strtolower($field['field_code'] ?? '');
             $value = $field['values'][0]['value'] ?? null;
             if ($value === null) continue;
 
-            if (str_contains($name, 'utm_source')   || $code === 'utm_source')   $utm['utm_source']   = $value;
-            if (str_contains($name, 'utm_medium')   || $code === 'utm_medium')   $utm['utm_medium']   = $value;
-            if (str_contains($name, 'utm_campaign') || $code === 'utm_campaign') {
-                $utm['utm_campaign'] = $value;
-                $utm['campaign_id']  = $value; // alias used for Yandex campaign attribution
+            // Mapping for utm_source
+            if (str_contains($name, 'utm_source') || $code === 'utm_source' || str_contains($name, 'источник')) {
+                $utm['utm_source'] = $value;
             }
-            if (str_contains($name, 'utm_content')  || $code === 'utm_content')  $utm['utm_content']  = $value;
-            if (str_contains($name, 'utm_term')      || $code === 'utm_term')     $utm['utm_term']     = $value;
+            
+            // Mapping for utm_medium
+            if (str_contains($name, 'utm_medium') || $code === 'utm_medium' || str_contains($name, 'тип трафика')) {
+                $utm['utm_medium'] = $value;
+            }
+
+            // Mapping for utm_campaign / campaign_id
+            if (
+                str_contains($name, 'utm_campaign') || 
+                $code === 'utm_campaign' || 
+                str_contains($name, 'campaign id') || 
+                str_contains($name, 'id кампании') ||
+                str_contains($name, 'кампания')
+            ) {
+                $utm['utm_campaign'] = $value;
+                $utm['campaign_id'] = $value;
+            }
+
+            if (str_contains($name, 'utm_content') || $code === 'utm_content') $utm['utm_content'] = $value;
+            if (str_contains($name, 'utm_term') || $code === 'utm_term') $utm['utm_term'] = $value;
+
+            // Mapping for Client IDs (Metrika, GA, etc.)
+            if (str_contains($name, 'metrika') || str_contains($name, 'метрика') || str_contains($name, 'ym_client_id')) {
+                $utm['metrika_id'] = $value;
+            }
+            if (str_contains($name, 'client_id') || str_contains($name, 'clientid') || str_contains($name, 'id клиента')) {
+                $utm['client_id'] = $value;
+            }
+            if (str_contains($name, 'google_id') || $code === 'gacid' || str_contains($name, 'ga id')) {
+                $utm['ga_id'] = $value;
+            }
+            if (str_contains($name, 'yclid')) {
+                $utm['yclid'] = $value;
+            }
         }
         return $utm;
     }
