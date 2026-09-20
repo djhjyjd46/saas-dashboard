@@ -1,59 +1,95 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# AdAnalytics SaaS Dashboard
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> **B2B Marketing & Ad Spend Intelligence Platform** built on **Laravel 10 / PHP 8.2+**, **Vite**, and **Tailwind CSS**. Integrates **Yandex.Direct API** and **amoCRM** for end-to-end multi-account unit economics and ROI tracking.
 
-## About Laravel
+[![Laravel](https://img.shields.io/badge/Laravel-10.x-FF2D20.svg?logo=laravel)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4.svg?logo=php)](https://php.net)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.x-38B2AC.svg?logo=tailwind-css)](https://tailwindcss.com)
+[![Vite](https://img.shields.io/badge/Vite-5.x-646CFF.svg?logo=vite)](https://vitejs.dev)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](#)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🎯 Platform Overview
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+AdAnalytics solves the fragmentation between ad spend and sales revenue. Instead of manually stitching spreadsheets across advertising accounts and CRM pipelines, AdAnalytics provides automated end-to-end attribution:
 
-## Learning Laravel
+```
+┌──────────────────────────┐          ┌──────────────────────────┐
+│    Yandex.Direct API     │          │        amoCRM API        │
+│  (Clicks, Spend, CPC)    │          │  (Leads, Deals, Revenue) │
+└─────────────┬────────────┘          └────────────┬─────────────┘
+              │                                    │
+              └──────────────► ┌─────────────────┐ ◄┘
+                               │   AdAnalytics   │
+                               │  SaaS Engine    │
+                               │  (Laravel/SQL)  │
+                               └────────┬────────┘
+                                        │
+             ┌──────────────────────────┼──────────────────────────┐
+             ▼                          ▼                          ▼
+   Executive Dashboard           Media Buyer Desk          Client Portal
+ (ROMI, Profit, CAC, CPL)    (Campaign optimization)   (Transparent reporting)
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🚀 Key Features
 
-## Laravel Sponsors
+- **Automated Ad Spend Ingestion:** Direct integration with Yandex.Direct API to fetch live impressions, clicks, daily expenditure, and UTM parameters.
+- **Two-Way CRM Attribution:** Connects deals and contact pipelines from amoCRM, automatically matching ad campaigns with closed deals.
+- **Unit Economics Engine:** Computes real-time business metrics:
+  - **CPL** (Cost per Lead)
+  - **CAC** (Customer Acquisition Cost)
+  - **ROMI / ROI** (Return on Marketing Investment)
+  - **Conversion Rates** across every funnel stage.
+- **Role-Based Access Control (RBAC):**
+  - **Superadmin / Agency Owner:** Global view across all client ad accounts and profit margins.
+  - **Media Buyer:** Granular access restricted to assigned client campaigns.
+  - **Client:** Read-only executive dashboard with transparent campaign performance.
+- **One-Click Deployments:** Automated production deployment pipelines (`deploy.ps1`, `deploy_server.sh`).
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 🏗️ Tech Stack
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- **Backend:** Laravel 10.x, PHP 8.2+, Eloquent ORM, MySQL.
+- **Frontend:** Vite, Blade templates, Tailwind CSS, Alpine.js, Chart.js.
+- **APIs:** Yandex.Direct v5 REST API, amoCRM OAuth 2.0 API.
+- **DevOps:** SSH/PowerShell automated deployment workflows.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 📦 Local Development Setup
 
-## Code of Conduct
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/djhjyjd46/saas-dashboard.git
+   cd saas-dashboard
+   ```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+2. **Install dependencies:**
+   ```bash
+   composer install
+   npm install
+   ```
 
-## Security Vulnerabilities
+3. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+4. **Set up database and run migrations:**
+   ```bash
+   php artisan migrate --seed
+   ```
 
-## License
+5. **Start development server:**
+   ```bash
+   npm run dev
+   php artisan serve
+   ```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+*Developed by [Egor Voronov](https://github.com/djhjyjd46)*
